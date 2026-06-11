@@ -63,6 +63,16 @@ code/               → 外部源码挂载（gitignored）
 runs/               → 执行现场（gitignored）
 ```
 
+**`config.json`** 是所有配置的唯一入口（SSOT）。包含三个区块：`active` 存放当前工作使用的模型、NPU 和 serving 参数；`full_test` 列出跨模型和跨框架的全面验证目标；`static` 存储不可变的硬件规格（NPU 峰值算力、带宽、HBM）。Skills 和脚本统一读取 config.json，不再硬编码。
+
+**`reference/`** 是静态知识基石——不可变的领域规则，不会因单次运行而改变。Skills 从这里查询硬件限制、代码风格、artifact schema 和历史优化上下文。
+
+**`humanize/`** 是经验飞轮——Agent 把经验证的排障教训写入此处，使工作区越用越聪明。具体 ledger 在运行根目录下生成，仅持久价值的教训回流到本目录。
+
+**`scripts/`** 是确定性引擎——跨 skill 共用的自动化脚本，LLM 不得修改脚本逻辑，变更需人工审核。
+
+**`skills/`** 包含 11 个过程化 agent skill，每个 SKILL.md 定义了执行流程、证据合约和本地 reference。Agent 加载与任务匹配的最小 skill 即可。
+
 ## 架构
 
 ![xLLM AI Coding Workflow](docs/assets/xllm-ai-coding-workflow-zh.png)

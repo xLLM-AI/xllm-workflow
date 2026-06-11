@@ -66,6 +66,16 @@ code/               → External source mount (gitignored)
 runs/               → Execution workspace (gitignored)
 ```
 
+**`config.json`** is the single source of truth for all configuration. It has three blocks: `active` holds the current model, NPU, and serving parameters for the work at hand; `full_test` lists cross-model and cross-framework targets for comprehensive validation; `static` stores immutable hardware specs (NPU peak FLOPs, bandwidth, HBM). Skills and scripts read config.json instead of hardcoding values.
+
+**`reference/`** is the static knowledge base — immutable domain rules that never change based on a single run. Skills query it for hardware limits, code style, artifact schemas, and historical optimization context.
+
+**`humanize/`** is the experience flywheel — Agents write validated troubleshooting lessons here, making the workspace smarter over time. Concrete ledgers live under run roots; only durable lessons are promoted back.
+
+**`scripts/`** is the deterministic engine — cross-skill shared automation scripts that LLMs must not modify. Changes to these scripts require human review.
+
+**`skills/`** contains 11 procedural agent skills, each with a SKILL.md defining the execution workflow, evidence contracts, and local references. Agents load the smallest skill matching the task.
+
 ## Architecture
 
 ![xLLM AI Coding Workflow](docs/assets/xllm-ai-coding-workflow-en.png)
