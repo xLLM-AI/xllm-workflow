@@ -1,14 +1,15 @@
 # reference/knowledge/ — Domain Knowledge
 
-Immutable domain rules and hardware specifications that inform Agent decisions.
+Immutable domain rules that inform Agent decisions.
 
 ## Contents
 
-- `npu-specs.json` — NPU hardware peak FLOPs, bandwidth, and HBM specs for Atlas A3/A2 devices
+(Directory currently stores domain knowledge rules. NPU hardware specs are now in `config.json` under `static.npu_specs`.)
 
 ## Principles
 
 - Files here are **read-only references** — never modify based on a single run
 - New domain knowledge (operator limits, memory allocation strategies) is added here, not in skill-local references
+- NPU hardware specs: read from `config.json` → `static.npu_specs`
 - For code style conventions, see `reference/code-style/`
 - For interface contracts, see `reference/io_specs/`

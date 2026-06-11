@@ -1,0 +1,69 @@
+{
+  "active": {
+    "model": "qwen35-27b",
+    "framework": "xllm",
+    "npu": "Atlas 800I A3",
+    "tp": 4,
+    "mtp": 3,
+    "dtype": "bfloat16",
+    "batch_size": 1,
+    "max_model_len": 8192
+  },
+  "full_test": {
+    "models": ["qwen35-27b", "deepseek-v3", "glm-5"],
+    "frameworks": ["xllm", "vllm-ascend", "sglang-npu"],
+    "npus": ["Atlas 800I A3", "Atlas 300I A2 64GB"]
+  },
+  "static": {
+    "npu_specs": {
+      "atlas_800i_a3_per_npu_estimate": {
+        "name": "Huawei Atlas 800I A3 per-NPU estimate",
+        "source": "https://e.huawei.com/cn/products/computing/ascend/atlas-800i-a3",
+        "notes": "Derived from the official 8-NPU server specification: 4.48 PFLOPS FP16, 8.96 POPS INT8, 8 * 128GB on-chip memory, 3.2TB/s memory bandwidth. Use npu-smi, CANN PlatformAscendC, and profiling artifacts for formal conclusions.",
+        "peak_flops": {
+          "bf16": null,
+          "fp16": 560000000000000,
+          "int8": 1120000000000000
+        },
+        "memory_bandwidth_bytes_per_sec": 3200000000000,
+        "hbm_bytes": 137438953472
+      },
+      "atlas_800t_a3_per_npu_estimate": {
+        "name": "Huawei Atlas 800T A3 per-NPU estimate",
+        "source": "https://e.huawei.com/cn/products/computing/ascend/atlas-800t-a3",
+        "notes": "Derived from the official 8-NPU server specification: 6.0 PFLOPS FP16, 12.0 POPS INT8, 8 * 128GB on-chip memory, 3.2TB/s memory bandwidth.",
+        "peak_flops": {
+          "bf16": null,
+          "fp16": 750000000000000,
+          "int8": 1500000000000000
+        },
+        "memory_bandwidth_bytes_per_sec": 3200000000000,
+        "hbm_bytes": 137438953472
+      },
+      "atlas_300i_a2_64gb": {
+        "name": "Huawei Atlas 300I A2 64GB",
+        "source": "https://e.huawei.com/cn/products/computing/ascend/atlas-300i-a2",
+        "notes": "Official product page lists 280 TFLOPS FP16, 560 TOPS INT8, 64GB on-chip memory, and 1.6TB/s memory bandwidth.",
+        "peak_flops": {
+          "bf16": null,
+          "fp16": 280000000000000,
+          "int8": 560000000000000
+        },
+        "memory_bandwidth_bytes_per_sec": 1600000000000,
+        "hbm_bytes": 68719476736
+      },
+      "atlas_300i_a2_32gb": {
+        "name": "Huawei Atlas 300I A2 32GB",
+        "source": "https://e.huawei.com/cn/products/computing/ascend/atlas-300i-a2",
+        "notes": "Official product page lists 280 TFLOPS FP16, 560 TOPS INT8, 32GB on-chip memory, and 0.8TB/s memory bandwidth.",
+        "peak_flops": {
+          "bf16": null,
+          "fp16": 280000000000000,
+          "int8": 560000000000000
+        },
+        "memory_bandwidth_bytes_per_sec": 800000000000,
+        "hbm_bytes": 34359738368
+      }
+    }
+  }
+}
