@@ -44,23 +44,23 @@ Skill 路由见 [AGENT.md](AGENT.md)，Phase 详情见 [docs/workflow](docs/npu-
 ## 目录一览
 
 ```text
-AGENT.md            → Agent 系统提示（约束、Skill路由、目录说明）
-CLAUDE.md           → Claude Code 引流至 AGENT.md
-config.json         → 统一配置 SSOT（active / full_test / static）
-prompts/            → 可直接复制的中文任务 Prompt 模板
-skills/             → 11 个过程化 agent skill（评测、profiler、benchmark…）
-reference/
-  knowledge/        → 不可变领域规则（NPU 规格在 config.json static.npu_specs）
-  code-style/       → C++/Python/NPU 代码风格约定
-  io_specs/         → Artifact schema（manifest、perf、accuracy、profiling）
-  pr_history/       → 模型 dossier 与 PR 历史（可通过 scripts/query.py 查询）
-baseline/           → 性能验收标准
-scripts/            → 跨 skill 共用确定性脚本
-humanize/           → 经验飞轮（经验证的排障与调优教训）
-docs/               → NPU AI Coding 工作流文档
-tests/              → 仓库卫生与 schema 校验
-code/               → 外部源码挂载（gitignored）
-runs/               → 执行现场（gitignored）
+1  AGENT.md            → Agent 系统提示（约束、Skill路由、目录说明）
+2  CLAUDE.md           → Claude Code 引流至 AGENT.md
+3  config.json         → 统一配置 SSOT（active / full_test / static）
+4  prompts/            → 可直接复制的中文任务 Prompt 模板
+5  skills/             → 11 个过程化 agent skill（评测、profiler、benchmark…）
+6  reference/
+     A  knowledge/     → 不可变领域规则（NPU 规格在 config.json static.npu_specs）
+     B  code-style/    → C++/Python/NPU 代码风格约定
+     C  io_specs/      → Artifact schema（manifest、perf、accuracy、profiling）
+     D  pr_history/    → 模型 dossier 与 PR 历史（可通过 scripts/query.py 查询）
+7  baseline/           → 性能验收标准
+8  scripts/            → 跨 skill 共用确定性脚本
+9  humanize/           → 经验飞轮（经验证的排障与调优教训）
+10 docs/               → NPU AI Coding 工作流文档
+11 tests/              → 仓库卫生与 schema 校验
+12 code/               → 外部源码挂载（gitignored）
+13 runs/               → 执行现场（gitignored）
 ```
 
 **`config.json`** 是所有配置的唯一入口（SSOT）。包含三个区块：`active` 存放当前工作使用的模型、NPU 和 serving 参数；`full_test` 列出跨模型和跨框架的全面验证目标；`static` 存储不可变的硬件规格（NPU 峰值算力、带宽、HBM）。Skills 和脚本统一读取 config.json，不再硬编码。

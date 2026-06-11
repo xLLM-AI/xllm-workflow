@@ -47,23 +47,23 @@ See [AGENT.md](AGENT.md) for skill routing and [docs/workflow](docs/npu-ai-codin
 ## Directory Overview
 
 ```text
-AGENT.md            → Agent system prompt (constraints, skill routing, directory guide)
-CLAUDE.md           → Claude Code redirect to AGENT.md
-config.json         → Unified configuration SSOT (active / full_test / static)
-prompts/            → Copy-ready task prompt templates (Chinese)
-skills/             → 11 procedural agent skills (eval, profiler, benchmark, …)
-reference/
-  knowledge/        → Immutable domain rules (NPU specs in config.json static.npu_specs)
-  code-style/       → C++/Python/NPU code style conventions
-  io_specs/         → Artifact schemas (run manifest, perf, accuracy, profiling)
-  pr_history/       → Model dossiers and PR history (queryable via scripts/query.py)
-baseline/           → Performance acceptance criteria
-scripts/            → Cross-skill shared deterministic scripts
-humanize/           → Experience flywheel (validated troubleshooting lessons)
-docs/               → NPU AI coding workflow documentation
-tests/              → Repository hygiene and schema validators
-code/               → External source mount (gitignored)
-runs/               → Execution workspace (gitignored)
+1  AGENT.md            → Agent system prompt (constraints, skill routing, directory guide)
+2  CLAUDE.md           → Claude Code redirect to AGENT.md
+3  config.json         → Unified configuration SSOT (active / full_test / static)
+4  prompts/            → Copy-ready task prompt templates (Chinese)
+5  skills/             → 11 procedural agent skills (eval, profiler, benchmark, …)
+6  reference/
+     A  knowledge/     → Immutable domain rules (NPU specs in config.json static.npu_specs)
+     B  code-style/    → C++/Python/NPU code style conventions
+     C  io_specs/      → Artifact schemas (run manifest, perf, accuracy, profiling)
+     D  pr_history/    → Model dossiers and PR history (queryable via scripts/query.py)
+7  baseline/           → Performance acceptance criteria
+8  scripts/            → Cross-skill shared deterministic scripts
+9  humanize/           → Experience flywheel (validated troubleshooting lessons)
+10 docs/               → NPU AI coding workflow documentation
+11 tests/              → Repository hygiene and schema validators
+12 code/               → External source mount (gitignored)
+13 runs/               → Execution workspace (gitignored)
 ```
 
 **`config.json`** is the single source of truth for all configuration. It has three blocks: `active` holds the current model, NPU, and serving parameters for the work at hand; `full_test` lists cross-model and cross-framework targets for comprehensive validation; `static` stores immutable hardware specs (NPU peak FLOPs, bandwidth, HBM). Skills and scripts read config.json instead of hardcoding values.
