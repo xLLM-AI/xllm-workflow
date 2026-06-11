@@ -83,11 +83,11 @@ runs/               → 执行现场（gitignored）
 
 ## 4 贡献指南
 
-- 把可复用经验沉淀为 skill、reference、schema 或 PR history entry。
-- 公共文档保持通用；模型相关经验放 `reference/pr_history/`。
-- 能解释未来决策的失败尝试要保留。
-- 不提交本地路径、私有 IP、凭据或非公开日志。
-- 通用 NPU evidence layer 与 framework adapter layer 分开维护。
+1. **确定性能力写成脚本** — 任何可自动化的确定性逻辑（编译、评测、profiling 收集）应固化为 `scripts/` 下的脚本，禁止 LLM 修改脚本逻辑。
+2. **可复用经验沉淀为 Skill** — 重复执行的标准工作流（如 benchmark 对比、PR review）封装为 `skills/` 下的 Skill，而非散落的零散笔记。
+3. **踩坑经验与最佳实践沉淀到 humanize** — 经验证的排障教训、调优心得、反复出现的坑点写入 `humanize/`，使工作区越用越聪明。
+4. **避免重复** — 配置、规范、提示词不多处重复；同一信息只保留一处，其他引用指向它（SSOT）。
+5. **不提交本地路径、私有 IP、凭据或非公开日志。**
 
 ## 5 License
 

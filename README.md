@@ -86,11 +86,11 @@ for reproduction.
 
 ## 4 Contribution Guidelines
 
-- Turn reusable lessons into skills, references, schemas, or PR history entries.
-- Keep public docs generic; model-specific lessons go in `reference/pr_history/`.
-- Preserve failed attempts that explain future decisions.
-- Do not commit local paths, private IPs, credentials, or non-public logs.
-- Separate generic NPU evidence from framework-specific adapters.
+1. **Deterministic capabilities go into scripts** — Any automatable deterministic logic (compile, evaluate, profiling collection) should be locked into `scripts/`; LLM must not modify script logic.
+2. **Reusable workflows become Skills** — Repeated standard workflows (benchmark comparison, PR review) should be encapsulated as `skills/` Skills, not scattered notes.
+3. **Pitfall lessons & best practices go into humanize** — Validated troubleshooting lessons, tuning insights, and recurring pitfalls belong in `humanize/`, making the workspace smarter over time.
+4. **Avoid duplication** — Configuration, specs, and prompts must not appear in multiple places; keep one source and reference it (SSOT).
+5. **Do not commit local paths, private IPs, credentials, or non-public logs.**
 
 ## 5 License
 
