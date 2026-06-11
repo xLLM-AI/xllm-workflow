@@ -6,9 +6,6 @@
 首个落地目标：[xLLM](https://github.com/jd-opensource/xllm)；公平基线：
 [vLLM-Ascend](https://github.com/vllm-project/vllm-ascend) 和 SGLang NPU。
 
-本仓库**不是** xLLM 运行时或 benchmark 归档——它提供一套可复用的 AI Coding 工作流。
-需要昇腾 910B3/A3 NPU、CANN 驱动和 agent runtime（Codex、Claude Code 或 opencode）。
-
 **本仓库可以处理的任务：**
 
 1. **特性设计与开发** — 设计新的 NPU serving 特性，编写代码，通过 review-gated 证据闭环验证。
@@ -77,7 +74,7 @@ Skill 路由见 [AGENT.md](AGENT.md)，Phase 详情见 [docs/workflow](docs/npu-
 
 **`skills/`** 包含 11 个过程化 agent skill，每个 SKILL.md 定义了执行流程、证据合约和本地 reference。Agent 加载与任务匹配的最小 skill 即可。
 
-## 3 架构
+## 3 典型工作流
 
 ![xLLM AI Coding Workflow](docs/assets/xllm-ai-coding-workflow-zh.png)
 

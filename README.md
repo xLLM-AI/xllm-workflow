@@ -7,10 +7,6 @@ large-model serving optimization on Ascend NPUs. First landing target:
 [xLLM](https://github.com/jd-opensource/xllm); fair baselines:
 [vLLM-Ascend](https://github.com/vllm-project/vllm-ascend) and SGLang NPU.
 
-This is **not** the xLLM runtime or a benchmark archive — it is a reusable
-AI coding workflow for engineers and agents. Requires Ascend 910B3/A3 NPU,
-CANN driver, and an agent runtime (Codex, Claude Code, or opencode).
-
 **What this repository handles:**
 
 1. **Feature design & development** — Design new NPU serving features, write code, and validate through review-gated evidence loops.
@@ -80,7 +76,7 @@ See [AGENT.md](AGENT.md) for skill routing and [docs/workflow](docs/npu-ai-codin
 
 **`skills/`** contains 11 procedural agent skills, each with a SKILL.md defining the execution workflow, evidence contracts, and local references. Agents load the smallest skill matching the task.
 
-## 3 Architecture
+## 3 Typical Workflow
 
 ![xLLM AI Coding Workflow](docs/assets/xllm-ai-coding-workflow-en.png)
 
