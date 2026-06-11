@@ -1,14 +1,14 @@
-# baseline/ — Performance Acceptance Criteria
+# baseline/ — 性能验收标准
 
-Performance baseline data for each model on different NPU hardware. Used as the
-reference point for optimization validation (Phase 1 of the evidence loop).
+各模型在不同 NPU 硬件上的性能基线数据，用作优化验证的参考基准
+（证据循环 Phase 1 的验收依据）。
 
-## Contents
+## 内容
 
-- `xllm-benchmark.md` — Qwen35-27B baseline performance and accuracy data
+- `xllm-benchmark.md` — Qwen35-27B 基线性能与精度数据
 
-## Usage
+## 使用规范
 
-- Before claiming an optimization gain, compare against the relevant baseline entry
-- Baseline data must be collected under warmup conditions with documented workload
-- New baseline entries are added when a new model/NPU combo is formally validated
+- 声称优化收益前，必须与对应基线数据对比
+- 基线数据必须在 warmup 条件下、有文档化 workload 的情况下采集
+- 新基线条目仅在新模型/NPU 组合经过正式验证后添加
