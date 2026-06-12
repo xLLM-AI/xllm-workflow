@@ -14,19 +14,26 @@
 
 ## 1 快速开始
 
-### A. 安装 Skills
+### A. 初始化 xLLM 代码并安装 Skills
 
 ```bash
-export AGENT_SKILL_DIR="${CODEX_HOME:-$HOME/.codex}/skills"   # Codex
-# export AGENT_SKILL_DIR="$HOME/.claude/skills"               # Claude Code
-
-mkdir -p "$AGENT_SKILL_DIR"
-for skill_dir in .agents/skills/xllm-npu-*; do
-  ln -sfn "$(pwd)/$skill_dir" "$AGENT_SKILL_DIR/$(basename "$skill_dir")"
-done
+python scripts/init_xllm_workspace.py
 ```
 
-### B. 选择 Prompt
+初始化脚本会从 `config.json` 读取 xLLM 仓库配置；如果配置缺失，会询问 Git URL
+和分支或 commit，并写回 `config.json`。当 `code/xllm` 不存在或为空时，脚本会
+拉取代码；如果目录已存在，则复用现有代码，并把 xLLM 仓内的 skills 链接到当前工作区。
+
+### B. 启动 Code Agent
+
+在当前仓库根目录启动 code agent，这样它可以加载工作区 `AGENTS.md`、
+`.agents/skills` 以及已链接的 xLLM 上下文。
+
+```bash
+codex
+```
+
+### C. 选择 Prompt
 
 从 [`prompts/`](prompts/) 复制模板，填入模型、硬件、框架、workload 和目标指标。
 
@@ -37,7 +44,7 @@ done
 | [`pr-fix`](prompts/xllm-npu-pr-fix-prompts.md) | PR 回归、review 回复、rebase、编译门禁 |
 | [`op-migration`](prompts/xllm-npu-op-migration-prompts.md) | 算子迁移、torch_npu/Triton-Ascend/AscendC |
 
-### C. 证据闭环
+### D. 执行工作流
 
 正式工作遵循 `target → baseline → profiling → patch → accuracy → performance → record`。
 Skill 路由见 [AGENTS.md](AGENTS.md)，Phase 详情见 [docs/workflow](docs/npu-ai-coding-standard-workflow.md)。

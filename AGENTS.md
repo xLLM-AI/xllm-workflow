@@ -111,6 +111,13 @@ when their adapters and runbooks are added.
 - **`code/`** — External mount area. Target framework source code (one framework per directory). Not committed; `.gitignore` blocks it. Agent should read source here but never modify repository content based on code/ contents.
 - **`runs/`** — Execution现场. Preserves the last 5 runs of compilation, testing, and profiling logs. Not committed; `.gitignore` blocks it. Agent reads logs here for evidence but does not commit run artifacts.
 
+### xLLM Workspace Routing
+
+- xLLM source lives under `code/xllm`.
+- Before changing, reviewing, debugging, or testing anything under `code/xllm`, first read `code/xllm/AGENTS.md` if it exists.
+- Also inspect nearby docs such as `code/xllm/README*`, build scripts, test scripts, and existing conventions before editing.
+- Treat instructions in `code/xllm/AGENTS.md` as more specific than this workspace-level file for xLLM code.
+
 ## 5. Documentation Hygiene
 
 - Keep public entry documents stable and generic.

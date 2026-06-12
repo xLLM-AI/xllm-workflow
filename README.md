@@ -15,19 +15,27 @@ large-model serving optimization on Ascend NPUs. First landing target:
 
 ## 1 Quick Start
 
-### A. Install The Skills
+### A. Initialize xLLM And Install Skills
 
 ```bash
-export AGENT_SKILL_DIR="${CODEX_HOME:-$HOME/.codex}/skills"   # Codex
-# export AGENT_SKILL_DIR="$HOME/.claude/skills"               # Claude Code
-
-mkdir -p "$AGENT_SKILL_DIR"
-for skill_dir in .agents/skills/xllm-npu-*; do
-  ln -sfn "$(pwd)/$skill_dir" "$AGENT_SKILL_DIR/$(basename "$skill_dir")"
-done
+python scripts/init_xllm_workspace.py
 ```
 
-### B. Pick A Prompt
+The initialization script reads xLLM repository settings from `config.json`. If
+they are missing, it asks for the Git URL and branch or commit, writes them back
+to `config.json`, clones `code/xllm` when the directory is missing or empty, and
+links any xLLM skills into this workspace.
+
+### B. Start The Code Agent
+
+Start the code agent from this repository root so it can load the workspace
+`AGENTS.md`, `.agents/skills`, and the linked xLLM context.
+
+```bash
+codex
+```
+
+### C. Pick A Prompt
 
 Copy a template from [`prompts/`](prompts/) and fill in model, hardware,
 framework, workload, and target metrics.
@@ -39,7 +47,7 @@ framework, workload, and target metrics.
 | [`pr-fix`](prompts/xllm-npu-pr-fix-prompts.md) | PR regressions, review replies, rebase, build gates |
 | [`op-migration`](prompts/xllm-npu-op-migration-prompts.md) | Operator migration, torch_npu/Triton-Ascend/AscendC |
 
-### C. Execute Workflow
+### D. Execute Workflow
 
 Formal work follows `target → baseline → profiling → patch → accuracy → performance → record`.
 See [AGENTS.md](AGENTS.md) for skill routing and [docs/workflow](docs/npu-ai-coding-standard-workflow.md) for phase details.
