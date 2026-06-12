@@ -42,13 +42,13 @@ framework, workload, and target metrics.
 ### C. Execute Workflow
 
 Formal work follows `target → baseline → profiling → patch → accuracy → performance → record`.
-See [AGENT.md](AGENT.md) for skill routing and [docs/workflow](docs/npu-ai-coding-standard-workflow.md) for phase details.
+See [AGENTS.md](AGENTS.md) for skill routing and [docs/workflow](docs/npu-ai-coding-standard-workflow.md) for phase details.
 
 ## 2 Directory Overview
 
 ```text
-AGENT.md            → Agent system prompt (constraints, skill routing, directory guide)
-CLAUDE.md           → Claude Code redirect to AGENT.md
+AGENTS.md           → Agent system prompt (constraints, skill routing, directory guide)
+CLAUDE.md           → Claude Code redirect to AGENTS.md
 config.json         → Unified configuration SSOT (active / full_test / static)
 prompts/            → Copy-ready task prompt templates (Chinese)
 skills/             → 11 procedural agent skills (eval, profiler, benchmark, …)

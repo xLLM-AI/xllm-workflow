@@ -1,4 +1,4 @@
-# AGENT.md — NPU Agent Workspace System Prompt
+# AGENTS.md — NPU Agent Workspace System Prompt
 
 Guidelines for Codex, opencode, Claude Code, and other coding agents working in
 this repository.
@@ -67,7 +67,7 @@ when their adapters and runbooks are added.
    - Run repository tests after changing schemas, scripts, or skill structure.
    - For documentation-only edits, at least run markdown-sensitive hygiene checks
      when available.
-   - Update README / README_zh / AGENT.md together when changing public workflow
+   - Update README / README_zh / AGENTS.md together when changing public workflow
      concepts.
    - End every optimization or bug-fix loop by recording reusable lessons in a
      ledger, reference, or model PR history.
@@ -119,4 +119,4 @@ when their adapters and runbooks are added.
 - Remove temporary blog drafts, local environment notes, and stale roadmap text
   before opening a PR.
 - Update README links when adding or removing documentation entry points.
-- Keep `AGENT.md` and `CLAUDE.md` conceptually aligned.
+- Keep `AGENTS.md` and `CLAUDE.md` conceptually aligned.

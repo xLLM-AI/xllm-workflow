@@ -40,13 +40,13 @@ done
 ### C. 证据闭环
 
 正式工作遵循 `target → baseline → profiling → patch → accuracy → performance → record`。
-Skill 路由见 [AGENT.md](AGENT.md)，Phase 详情见 [docs/workflow](docs/npu-ai-coding-standard-workflow.md)。
+Skill 路由见 [AGENTS.md](AGENTS.md)，Phase 详情见 [docs/workflow](docs/npu-ai-coding-standard-workflow.md)。
 
 ## 2 目录一览
 
 ```text
-AGENT.md            → Agent 系统提示（约束、Skill路由、目录说明）
-CLAUDE.md           → Claude Code 引流至 AGENT.md
+AGENTS.md           → Agent 系统提示（约束、Skill路由、目录说明）
+CLAUDE.md           → Claude Code 引流至 AGENTS.md
 config.json         → 统一配置 SSOT（active / full_test / static）
 prompts/            → 可直接复制的中文任务 Prompt 模板
 skills/             → 11 个过程化 agent skill（评测、profiler、benchmark…）
