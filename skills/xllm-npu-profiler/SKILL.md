@@ -16,9 +16,9 @@ description: 昇腾 NPU 910B3 (A3) 上的 xLLM 推理 Profiling 分析。提供�
 - [scripts/render_triage_npu.py](scripts/render_triage_npu.py) — 五表 Markdown 渲染
 
 正式 profiling 产物必须遵循
-[`../../references/profiling-artifact-schema.md`](../../references/profiling-artifact-schema.md)；
+[`../../reference/io_specs/profiling-artifact-schema.md`](../../reference/io_specs/profiling-artifact-schema.md)；
 run 元信息遵循
-[`../../references/run-manifest-template.md`](../../references/run-manifest-template.md)。
+[`../../reference/io_specs/run-manifest-template.md`](../../reference/io_specs/run-manifest-template.md)。
 Profiling run 用于解释瓶颈，不直接替代无 profiling 的 before/after 性能数据。
 
 当 profiling 结论涉及 decode-step gap、graph replay gap、host bubble、pipeline

@@ -7,8 +7,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def text_files():
     suffixes = {".md", ".py", ".sh", ".json", ".jsonl", ".yaml", ".yml"}
+    ignored_parts = {".git", ".agents", ".pytest_cache", "__pycache__", "code", "runs"}
+    ignored_files = {"config.json"}
     for path in ROOT.rglob("*"):
-        if ".git" in path.parts:
+        if any(part in ignored_parts for part in path.parts):
+            continue
+        if path.name in ignored_files:
             continue
         if path.is_file() and path.suffix in suffixes:
             yield path
@@ -16,15 +20,14 @@ def text_files():
 
 def test_skill_frontmatter_has_name_and_description():
     skill_files = list(ROOT.glob("skills/*/SKILL.md")) + [
-        ROOT / "kernel-pilot/SKILL.md",
-        ROOT / "model-pr-optimization-history/SKILL.md",
+        ROOT / "reference/pr_history/SKILL.md",
     ]
     for skill in skill_files:
         text = skill.read_text(encoding="utf-8")
         assert text.startswith("---\n"), skill
         header = text.split("---", 2)[1]
         assert re.search(r"^name:\s*\S+", header, re.M), skill
-        assert re.search(r"^description:\s*.+", header, re.M), skill
+        assert re.search(r"^description:\s+.+", header, re.M), skill
 
 
 def test_skills_do_not_hardcode_single_agent_install_paths():
@@ -34,8 +37,7 @@ def test_skills_do_not_hardcode_single_agent_install_paths():
         "~/.claude/skills/",
     ]
     skill_files = list(ROOT.glob("skills/*/SKILL.md")) + [
-        ROOT / "kernel-pilot/SKILL.md",
-        ROOT / "model-pr-optimization-history/SKILL.md",
+        ROOT / "reference/pr_history/SKILL.md",
     ]
     for skill in skill_files:
         text = skill.read_text(encoding="utf-8")

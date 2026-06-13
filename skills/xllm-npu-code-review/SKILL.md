@@ -34,7 +34,7 @@ git diff $MERGE_BASE..HEAD
 
 ### Step 2: 阅读项目标准
 
-阅读 [custom-code-style.md](../../references/custom-code-style.md)（如果存在）和 xLLM 仓库的 `AGENTS.md` 中的代码风格指南。
+阅读 [custom-code-style.md](../../reference/code-style/custom-code-style.md)（如果存在）和 xLLM 仓库的 `AGENTS.md` 中的代码风格指南。
 
 ### Step 3: NPU 特化审查
 

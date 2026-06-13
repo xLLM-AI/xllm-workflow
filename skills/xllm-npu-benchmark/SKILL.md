@@ -29,8 +29,8 @@ description: 在昇腾 NPU 上进行 xLLM、vLLM-Ascend、SGLang NPU 等 OpenAI-
 
 共享产物契约：
 
-- [`../../references/perf-artifact-schema.md`](../../references/perf-artifact-schema.md)
-- [`../../references/run-manifest-template.md`](../../references/run-manifest-template.md)
+- [`../../reference/io_specs/perf-artifact-schema.md`](../../reference/io_specs/perf-artifact-schema.md)
+- [`../../reference/io_specs/run-manifest-template.md`](../../reference/io_specs/run-manifest-template.md)
 - [`references/npu-fairness-rules.md`](references/npu-fairness-rules.md)
 
 ## 按需加载 References

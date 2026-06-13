@@ -1,4 +1,4 @@
-# AGENTS.md
+# AGENTS.md — NPU Agent Workspace System Prompt
 
 Guidelines for Codex, opencode, Claude Code, and other coding agents working in
 this repository.
@@ -8,55 +8,71 @@ optimization. The first supported landing target is xLLM, but the evidence
 model should stay portable to other OpenAI-compatible NPU serving frameworks
 when their adapters and runbooks are added.
 
-Claude Code should also read `CLAUDE.md`; keep both files aligned when changing
-agent behavior.
-
-## Repository Purpose
+## 1. Repository Purpose
 
 - Preserve repeatable NPU optimization workflows as skills, schemas, scripts,
   prompts, and model history.
 - Keep benchmark, profiling, accuracy, capacity, and review evidence explicit.
 - Separate generic workflow rules from model-specific or framework-specific
   lessons.
-- Promote durable lessons into `model-pr-optimization-history/`, `references/`,
+- Promote durable lessons into `reference/pr_history/`, `reference/`,
   `skills/*/references/`, or run-root `humanize/` ledgers.
 
-## Core Rules
+## 2. Core Engineering Constraints
 
-1. **Evidence before patch**: performance work needs a warmed-up baseline and
-   profiling evidence before code changes. Accuracy work needs a stable
-   reproducer.
-2. **Fair comparisons only**: compare frameworks under the same model,
-   tokenizer, dtype, hardware, workload, sampling parameters, and SLA. Tune each
-   framework independently.
-3. **Profiling is diagnostic**: profiling captures explain bottlenecks but do
-   not replace non-profiling before/after performance runs.
-4. **Review-gated evidence loop**: use
-   `Research -> Learn -> Code -> Review -> Validate -> Record`. This is inspired
-   by PolyArch/humanize's RLCR review discipline, but this repository does not
-   implement Humanize RLCR itself.
-5. **Small, verifiable changes**: make one meaningful change per validation
-   round whenever practical.
-6. **No private data**: do not commit private paths, host names, internal IPs,
-   private datasets, credentials, or full production logs.
-7. **Record reusable lessons**: failed attempts, review findings, performance
-   conclusions, and accuracy lessons should be captured in durable references or
-   run-root ledgers.
+1. **Think Before Editing**
+   - State assumptions when the task is ambiguous.
+   - If multiple interpretations change the implementation, ask before editing.
+   - If a simpler approach exists, say so before choosing a heavier path.
+   - Prefer the existing skill structure, artifact schema, and naming conventions.
+   - For trivial documentation fixes, make the small obvious edit and verify it.
 
-## Entry Points
+2. **Simplicity First**
+   - Implement only what the user asked for and what the validation goal requires.
+   - Do not add abstractions, configuration, compatibility layers, or speculative
+     features for a single-use need.
+   - If a change starts to sprawl, shrink it back to the smallest verifiable diff.
 
-| Entry | Use When |
-|---|---|
-| `README.md` / `README_zh.md` | Public overview and installation guidance |
-| `docs/npu-ai-coding-standard-workflow.md` | Generic evidence-loop workflow |
-| `prompts/` | Copy-ready task prompts for agents |
-| `skills/*/SKILL.md` | Procedural task execution |
-| `references/` | Shared schemas, specs, and reusable rules |
-| `model-pr-optimization-history/` | Historical model and PR knowledge |
-| `humanize/` | Ledger contract; concrete ledgers live under each run root |
-| `kernel-pilot/` | Kernel-level experiments after profiling justifies them |
+3. **Evidence Before Patch**
+   - Performance optimization requires a warmed-up baseline and profiling evidence
+     before code changes.
+   - Accuracy fixes require a stable reproducer before broader evaluation.
+   - Profiling captures explain bottlenecks; they are not formal before/after
+     performance results.
+   - Do not claim a gain without raw artifacts, metrics, and the exact workload.
 
-## Skill Routing
+4. **Keep Changes Surgical**
+   - Touch only files needed for the request.
+   - Do not rewrite skill bodies into long essays. Keep `SKILL.md` procedural and
+     move detailed material into `references/` when needed.
+   - Do not delete failed attempts or historical lessons; convert them into
+     reusable notes.
+   - Do not add local paths, private host names, internal IPs, private datasets, or
+     secrets to committed files.
+
+5. **Fair Comparisons Only**
+   - Compare frameworks under the same model, tokenizer, dtype, hardware, workload,
+     sampling parameters, and SLA. Tune each framework independently.
+
+6. **Profiling Is Diagnostic**
+   - Profiling captures explain bottlenecks but do not replace non-profiling
+     before/after performance runs.
+
+7. **Review-Gated Evidence Loop**
+   - Use Research → Learn → Code → Review → Validate → Record.
+   - This is inspired by PolyARCH/humanize's RLCR review discipline, but this
+     repository does not implement Humanize RLCR itself.
+
+8. **Validate and Record**
+   - Run repository tests after changing schemas, scripts, or skill structure.
+   - For documentation-only edits, at least run markdown-sensitive hygiene checks
+     when available.
+   - Update README / README_zh / AGENTS.md together when changing public workflow
+     concepts.
+   - End every optimization or bug-fix loop by recording reusable lessons in a
+     ledger, reference, or model PR history.
+
+## 3. Task → Skill Routing
 
 | Task | Start With |
 |---|---|
@@ -71,31 +87,43 @@ agent behavior.
 | Crash, hang, HCCL, graph, or PagedAttention incident | `skills/xllm-npu-incident-triage/SKILL.md` |
 | NPU code review before PR | `skills/xllm-npu-code-review/SKILL.md` |
 | Operator migration | `skills/xllm-npu-op-migration/SKILL.md` |
-| Kernel experiment | `kernel-pilot/SKILL.md` |
-| Historical model knowledge | `model-pr-optimization-history/SKILL.md` |
 
-## Evidence Loop
+## 4. Configuration and Directory Guide
 
-```text
-Phase 0   Target and environment
-Phase 0.5 Historical model knowledge
-Phase 1   Fair baseline
-Phase 2   Gap assessment
-Phase 3   Profiling, capacity, pipeline, compute, or accuracy evidence
-Phase 4   Optimization plan
-Phase 5   Research -> Learn -> Code -> Review -> Validate -> Record
-Phase 6   Final record and reusable lessons
-```
+### Cascade Priority
 
-Do not skip Phase 1 and Phase 3 for performance work. Do not claim success
-without the raw commands, workload, metrics, and artifacts needed to reproduce
-the result.
+1. `config.json` — local active configuration for current work, generated from `config.example.json` and not committed
+2. `reference/` — static domain knowledge and interface contracts
+3. `skills/*/references/` — skill-specific detailed references
+4. `skills/*/SKILL.md` — procedural execution workflow
 
-## Documentation Hygiene
+### Directory Descriptions
+
+- **`config.example.json`** — Shared default configuration template checked into Git.
+- **`config.json`** — Local unified configuration entry generated from `config.example.json`: `code` (origin/upstream/branch/commit), `xllm` (model, draft model, feature flags, and launch args), `dev_test` (small input/output/concurrency/script settings), and `full_test` (comprehensive validation matrix). Single source of truth for one developer's current workspace. Do not commit personal changes.
+- **`reference/`** — Static knowledge base, immutable domain rules:
+  - `knowledge/` — Domain knowledge (immutable rules; NPU specs are in config.json `xllm.hardware.npu_specs`)
+  - `code-style/` — Code style conventions (C++/Python/NPU coding standards)
+  - `pr_history/` — Evolution history (model dossiers, PR change logs, queryable via `scripts/query.py`)
+  - `io_specs/` — Interface contracts (artifact schemas, manifest templates defining skill-Agent interaction)
+- **`baseline/`** — Performance acceptance criteria. Baseline data for each model on different NPU hardware. Compare against these before claiming an optimization gain.
+- **`humanize/`** — Experience flywheel. Dynamic experience pool for validated troubleshooting and tuning lessons. Concrete ledgers live under run roots; only durable lessons are promoted here.
+- **`scripts/`** — Deterministic engine. Cross-skill shared automation scripts (compilation, testing, profiling). LLM must not modify script logic; changes require human review.
+- **`code/`** — External mount area. Target framework source code (one framework per directory). Not committed; `.gitignore` blocks it. Agent should read source here but never modify repository content based on code/ contents.
+- **`runs/`** — Execution现场. Preserves the last 5 runs of compilation, testing, and profiling logs. Not committed; `.gitignore` blocks it. Agent reads logs here for evidence but does not commit run artifacts.
+
+### xLLM Workspace Routing
+
+- xLLM source lives under `code/xllm`.
+- Before changing, reviewing, debugging, or testing anything under `code/xllm`, first read `code/xllm/AGENTS.md` if it exists.
+- Also inspect nearby docs such as `code/xllm/README*`, build scripts, test scripts, and existing conventions before editing.
+- Treat instructions in `code/xllm/AGENTS.md` as more specific than this workspace-level file for xLLM code.
+
+## 5. Documentation Hygiene
 
 - Keep public entry documents stable and generic.
-- Put model-specific lessons under `model-pr-optimization-history/` or
-  skill `references/`, not in the main README or generic workflow document.
+- Put model-specific lessons under `reference/pr_history/` or skill
+  `references/`, not in the main README or generic workflow document.
 - Remove temporary blog drafts, local environment notes, and stale roadmap text
   before opening a PR.
 - Update README links when adding or removing documentation entry points.

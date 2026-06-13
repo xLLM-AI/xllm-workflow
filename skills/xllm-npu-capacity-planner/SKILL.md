@@ -24,7 +24,7 @@ description: xLLM / vLLM-Ascend / SGLang NPU serving 容量规划。用于分析
 ## 工作流
 
 1. 使用
-   [`../../references/run-manifest-template.md`](../../references/run-manifest-template.md).
+   [`../../reference/io_specs/run-manifest-template.md`](../../reference/io_specs/run-manifest-template.md).
    创建 run manifest。
 2. 解析启动日志中的模型显存、可用 HBM、KV blocks、block size、
    reserved linear bytes 和分配失败信息。
@@ -65,5 +65,5 @@ runs/capacity/<run_id>/
 ## 参考资料
 
 - [`references/capacity-log-patterns.md`](references/capacity-log-patterns.md)
-- [`../../references/run-manifest-template.md`](../../references/run-manifest-template.md)
-- [`../../references/perf-artifact-schema.md`](../../references/perf-artifact-schema.md)
+- [`../../reference/io_specs/run-manifest-template.md`](../../reference/io_specs/run-manifest-template.md)
+- [`../../reference/io_specs/perf-artifact-schema.md`](../../reference/io_specs/perf-artifact-schema.md)

@@ -11,7 +11,7 @@ description: xLLM、vLLM-Ascend、SGLang 的 NPU serving pipeline 和 layer-leve
 ## 输入
 
 - 遵循
-  [`../../references/profiling-artifact-schema.md`](../../references/profiling-artifact-schema.md).
+  [`../../reference/io_specs/profiling-artifact-schema.md`](../../reference/io_specs/profiling-artifact-schema.md).
   的 profiling artifact。
 - Workload shape：input tokens、output tokens、parallel、warmup。
 - 框架启动命令和 commit。
@@ -94,4 +94,4 @@ profiling/<run_id>/
 
 - [`references/pipeline-boundaries.md`](references/pipeline-boundaries.md)
 - [`../xllm-npu-profiler/references/source-map.md`](../xllm-npu-profiler/references/source-map.md)
-- [`../../references/profiling-artifact-schema.md`](../../references/profiling-artifact-schema.md)
+- [`../../reference/io_specs/profiling-artifact-schema.md`](../../reference/io_specs/profiling-artifact-schema.md)

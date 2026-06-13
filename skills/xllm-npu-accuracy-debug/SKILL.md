@@ -30,9 +30,9 @@ description: xLLM 昇腾 NPU 精度异常定位。用于输出不是人话、答
 6. **证据归档**：保存 prompt、target、prediction、日志、commit、启动参数和输出目录。
 
 正式精度产物必须遵循
-[`../../references/accuracy-artifact-schema.md`](../../references/accuracy-artifact-schema.md)；
+[`../../reference/io_specs/accuracy-artifact-schema.md`](../../reference/io_specs/accuracy-artifact-schema.md)；
 run 元信息遵循
-[`../../references/run-manifest-template.md`](../../references/run-manifest-template.md)。
+[`../../reference/io_specs/run-manifest-template.md`](../../reference/io_specs/run-manifest-template.md)。
 如果只是单 prompt 或 5-10 条 smoke，报告中必须标为 L1/L2，不能扩大成完整
 精度结论。
 

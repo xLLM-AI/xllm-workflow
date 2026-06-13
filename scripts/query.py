@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Query model PR optimization history.
 
-Searches local model dossier files for PR history, optimization attempts,
-known risks, validation notes, and pending ideas.
+Searches model dossier files in reference/pr_history/ for PR history,
+optimization attempts, known risks, validation notes, and pending ideas.
 """
 
 import argparse
@@ -13,6 +13,13 @@ from pathlib import Path
 
 FRAMEWORKS = {"xllm", "vllm-ascend", "sglang"}
 
+# Known model-to-framework mapping for flat dossier files
+MODEL_FRAMEWORK = {
+    "deepseek-v3": "xllm",
+    "glm-5": "xllm",
+    "qwen35-mtp": "xllm",
+}
+
 
 def load_archives(root: str, framework: str | None = None) -> list[dict[str, str]]:
     archives = []
@@ -20,20 +27,45 @@ def load_archives(root: str, framework: str | None = None) -> list[dict[str, str
     if not root_path.exists():
         return archives
 
-    framework_dirs = [root_path / framework] if framework else [
-        path for path in root_path.iterdir() if path.is_dir() and path.name in FRAMEWORKS
-    ]
-    for framework_dir in framework_dirs:
-        if not framework_dir.exists():
-            continue
-        for md_file in sorted(framework_dir.rglob("*.md")):
-            rel = md_file.relative_to(root_path)
+    # Check if dossiers are in framework subdirectories (old layout)
+    has_framework_dirs = any(
+        (root_path / fw).is_dir() for fw in FRAMEWORKS
+    )
+
+    if has_framework_dirs:
+        # Old layout: root/xllm/model.md
+        framework_dirs = [root_path / framework] if framework else [
+            path for path in root_path.iterdir() if path.is_dir() and path.name in FRAMEWORKS
+        ]
+        for framework_dir in framework_dirs:
+            if not framework_dir.exists():
+                continue
+            for md_file in sorted(framework_dir.rglob("*.md")):
+                if md_file.name == "SKILL.md" or md_file.name == "card-schema.md":
+                    continue
+                rel = md_file.relative_to(root_path)
+                archives.append({
+                    "framework": rel.parts[0],
+                    "model": md_file.stem,
+                    "path": str(rel),
+                    "content": md_file.read_text(encoding="utf-8"),
+                })
+    else:
+        # New layout: root/model.md (flat files)
+        for md_file in sorted(root_path.glob("*.md")):
+            if md_file.name == "SKILL.md" or md_file.name == "card-schema.md":
+                continue
+            model_name = md_file.stem
+            fw = MODEL_FRAMEWORK.get(model_name, "unknown")
+            if framework and fw != framework:
+                continue
             archives.append({
-                "framework": rel.parts[0],
-                "model": md_file.stem,
-                "path": str(rel),
+                "framework": fw,
+                "model": model_name,
+                "path": md_file.name,
                 "content": md_file.read_text(encoding="utf-8"),
             })
+
     return archives
 
 
@@ -136,8 +168,8 @@ def main():
                         help="Keyword to search; can be repeated")
     parser.add_argument("--path", dest="path_keyword",
                         help="Filter dossiers containing a file path or symbol")
-    parser.add_argument("--archives-dir", default=os.path.join(os.path.dirname(__file__), ".."),
-                        help="Path to model-pr-optimization-history directory")
+    parser.add_argument("--archives-dir", default=os.path.join(os.path.dirname(__file__), "..", "reference", "pr_history"),
+                        help="Path to pr_history directory")
     parser.add_argument("--verbose", "-v", action="store_true", help="Show full section content")
     args = parser.parse_args()
 

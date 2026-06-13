@@ -48,7 +48,7 @@ Record the target before running experiments:
 - launch command and visible devices;
 - workload, sampling parameters, SLA, and artifact root.
 
-Use `references/run-manifest-template.md` as the common manifest shape.
+Use `reference/io_specs/run-manifest-template.md` as the common manifest shape.
 
 ## Phase 1: Fair Baseline
 
@@ -115,7 +115,7 @@ A useful plan should include:
 - the validation commands and artifacts that will prove or disprove the change.
 
 For operator work, use `skills/xllm-npu-op-migration/SKILL.md` before starting a
-low-level kernel experiment. Use `kernel-pilot/SKILL.md` only after profiling
+low-level kernel experiment. Only proceed to kernel-level work after profiling
 shows that a kernel-level path is the right next step.
 
 ## Phase 5: Review-Gated Iteration
@@ -141,7 +141,7 @@ Relevant skills:
 
 - `skills/xllm-npu-sota-loop/SKILL.md`
 - `skills/xllm-npu-code-review/SKILL.md`
-- `model-pr-optimization-history/SKILL.md`
+- `reference/pr_history/SKILL.md`
 
 ## Phase 6: Record
 
@@ -157,12 +157,12 @@ Recommended artifacts:
 - patch summary and validation result;
 - final conclusion with known risks and follow-up work.
 
-Use the schemas in `references/` for common artifact formats:
+Use the schemas in `reference/io_specs/` for common artifact formats:
 
-- `references/perf-artifact-schema.md`
-- `references/profiling-artifact-schema.md`
-- `references/accuracy-artifact-schema.md`
-- `references/run-manifest-template.md`
+- `reference/io_specs/perf-artifact-schema.md`
+- `reference/io_specs/profiling-artifact-schema.md`
+- `reference/io_specs/accuracy-artifact-schema.md`
+- `reference/io_specs/run-manifest-template.md`
 
 ## Contribution Guidance
 

@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-QUERY = ROOT / "model-pr-optimization-history" / "scripts" / "query.py"
+QUERY = ROOT / "scripts" / "query.py"
 
 
 def run_query(*args):
@@ -19,7 +19,7 @@ def run_query(*args):
 
 def test_query_supports_model_and_keyword_filters():
     out = run_query("--model", "Qwen3.5", "--keyword", "MTP")
-    assert "xllm/qwen35-mtp" in out
+    assert "qwen35-mtp" in out
     assert "Acceptance Rate" in out or "MTP" in out
 
 

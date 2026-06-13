@@ -138,7 +138,7 @@ RUN_ROOT="${RUN_ROOT:-runs/eval/$(date +%Y%m%d_%H%M%S)_xllm_npu_eval}"
 mkdir -p "$RUN_ROOT"/{env,service,perf,accuracy}
 ```
 
-使用 [`references/run-manifest-template.md`](../../references/run-manifest-template.md)
+使用 [`reference/io_specs/run-manifest-template.md`](../../reference/io_specs/run-manifest-template.md)
 写入 `manifest.md`。
 至少记录：
 
@@ -252,7 +252,7 @@ bash <skill_dir>/scripts/eval_acc.sh
 
 精度结果会打印到 stdout。正式 run 要在 `$RUN_ROOT/accuracy/` 下保存原始预测、
 失败样本、score 文件和简短 `report.md`。artifact 结构遵循
-[`references/accuracy-artifact-schema.md`](../../references/accuracy-artifact-schema.md)。
+[`reference/io_specs/accuracy-artifact-schema.md`](../../reference/io_specs/accuracy-artifact-schema.md)。
 
 ## Step 9: 写入 Metrics 和 Report
 

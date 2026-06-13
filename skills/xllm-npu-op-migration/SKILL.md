@@ -11,9 +11,6 @@ profiling 证据。
 ## 先读哪些资料
 
 - 迁移流程和参考仓库差异：`references/op-migration-runbook.md`
-- 如果是 Triton-Ascend：再读 `kernel-pilot/knowledge/triton-ascend-patterns.md`
-- 如果是 PyTorch / torch_npu：再读 `kernel-pilot/knowledge/pytorch-torchnpu-patterns.md`
-- 如果是 AscendC：再读 `kernel-pilot/knowledge/ascendc-patterns.md`
 
 ## 适用场景
 
@@ -26,7 +23,6 @@ profiling 证据。
 
 不使用本 skill 当：
 
-- 只是单纯写一个新 kernel，且没有迁移/接入问题：使用 `kernel-pilot`。
 - 只是评测性能：使用 `xllm-npu-eval-runner` 或 `xllm-npu-benchmark`。
 - 只是定位精度：使用 `xllm-npu-accuracy-debug`。
 

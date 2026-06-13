@@ -226,4 +226,4 @@
 
 ### 9.4 参考记录
 
-- `model-pr-optimization-history/xllm/qwen35-mtp.md`
+- `reference/pr_history/qwen35-mtp.md`
