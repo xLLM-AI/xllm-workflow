@@ -116,14 +116,12 @@ def test_link_workspace_skills_links_project_and_xllm_skill_dirs(tmp_path, monke
 
     assert project_skipped == []
     assert xllm_skipped == []
-    assert project_linked == ["project-review -> skills/project-review"]
-    assert xllm_linked == [
-        "xllm-debug -> code/xllm/.agents/skills/debug",
-        "xllm-profile -> code/xllm/skills/profile",
-    ]
-    assert (skills_dir / "project-review").is_symlink()
-    assert (skills_dir / "xllm-debug").is_symlink()
-    assert (skills_dir / "xllm-profile").is_symlink()
+    assert project_linked[0].startswith("project-review -> skills/project-review")
+    assert xllm_linked[0].startswith("xllm-debug -> code/xllm/.agents/skills/debug")
+    assert xllm_linked[1].startswith("xllm-profile -> code/xllm/skills/profile")
+    assert (skills_dir / "project-review").exists()
+    assert (skills_dir / "xllm-debug").exists()
+    assert (skills_dir / "xllm-profile").exists()
 
 
 def test_link_skill_dirs_does_not_replace_real_directory(tmp_path, monkeypatch):
@@ -155,5 +153,26 @@ def test_install_project_skills_links_to_target_dir(tmp_path, monkeypatch):
     linked, skipped = init.install_project_skills(target_dir)
 
     assert skipped == []
-    assert linked == ["triage -> skills/triage"]
-    assert (target_dir / "triage").is_symlink()
+    assert linked[0].startswith("triage -> skills/triage")
+    assert (target_dir / "triage").exists()
+
+
+def test_link_skill_dirs_copies_when_windows_symlink_privilege_is_missing(tmp_path, monkeypatch):
+    source = tmp_path / "skills" / "triage"
+    source.mkdir(parents=True)
+    (source / "SKILL.md").write_text("---\nname: triage\ndescription: triage\n---\n", encoding="utf-8")
+    skills_dir = tmp_path / ".codex" / "skills"
+    monkeypatch.setattr(init, "ROOT", tmp_path)
+
+    def raise_windows_privilege_error(self, target, target_is_directory=False):
+        err = OSError("missing privilege")
+        err.winerror = 1314
+        raise err
+
+    monkeypatch.setattr(Path, "symlink_to", raise_windows_privilege_error)
+
+    linked, skipped = init.link_skill_dirs([source], skills_dir)
+
+    assert skipped == []
+    assert linked == ["triage -> skills/triage (copied; symlink unavailable)"]
+    assert (skills_dir / "triage" / "SKILL.md").is_file()
