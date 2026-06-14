@@ -70,7 +70,7 @@ framework, workload, and target metrics.
 ### D. Execute Workflow
 
 Formal work follows `target → baseline → profiling → patch → accuracy → performance → record`.
-See [AGENTS.md](AGENTS.md) for skill routing and [docs/workflow](docs/npu-ai-coding-standard-workflow.md) for phase details.
+See [AGENTS.md](AGENTS.md) for skill routing and [docs/npu-ai-coding-standard-workflow.md](docs/npu-ai-coding-standard-workflow.md) for phase details.
 
 ## 2 Directory Overview
 
