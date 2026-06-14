@@ -4,6 +4,12 @@ Historical cases are kept outside the main incident skill. Load this file only
 when the user asks for similar known incidents or wants examples of report
 formatting.
 
+Additional focused cases:
+
+- [D-state hang during mmap weight loading](d-state-mmap-weight-loading-case.md)
+  covers uninterruptible process hangs where `/proc/<pid>/stack` and `dmesg`
+  point to Ascend driver page-pinning during CPU-to-NPU checkpoint copies.
+
 ## MTP AddRmsNorm Shape Crash
 
 Observed symptom:

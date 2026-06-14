@@ -246,6 +246,18 @@ Evidence pattern:
 - Profiling: compare transpose kernel call count and device time before/after.
 - Performance: compare baseline/current with the same warmup and workload.
 
+Representative validated result from an A3/Qwen3.5-27B run:
+
+| Metric | Before | After | Delta |
+|---|---:|---:|---:|
+| dominant transpose variant | 14,400 calls / 207.8 ms | 960 calls / 17.3 ms | -93.3% calls |
+| all transpose-like kernels | 14,690 calls / 211.9 ms | 1,210 calls / 21.1 ms | -190.8 ms |
+| output throughput | 36.11 tok/s | 39.54 tok/s | +9.5% |
+| TPOT | 24.2 ms | 21.9 ms | -9.5% |
+| speculative accept rate | 47.7% | 47.7% | unchanged |
+
+Reusable reference: `skills/xllm-npu-sota-loop/references/mtp-transpose-elimination-case.md`.
+
 Risk:
 
 - Layout fixes can silently change semantics. Do not accept a pure performance win without
