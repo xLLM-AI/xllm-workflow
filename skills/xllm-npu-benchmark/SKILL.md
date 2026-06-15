@@ -44,6 +44,8 @@ description: 在昇腾 NPU 上进行 xLLM、vLLM-Ascend、SGLang NPU 等 OpenAI-
 | evalscope 命令模板、YAML 配置、QPS 搜索模板 | [`references/benchmark-runbook.md`](references/benchmark-runbook.md) |
 | MTP/speculative decoding、接受率、draft model、`/vars` counter | [`references/mtp-benchmark-lessons.md`](references/mtp-benchmark-lessons.md) |
 | chunked prefill 是否真正生效、prefill profiling 对比 | [`references/chunked-prefill-benchmark.md`](references/chunked-prefill-benchmark.md) |
+| 报告格式规范：中文撰写、avg/p50/p90/p99 完整指标、分并发报告 + 总报告结构 | [`references/report-format-spec.md`](references/report-format-spec.md) |
+| 标准 prompt 模板：支持 full（全量对比）和 incremental（增量对比）两种模式 | [`references/benchmark-prompt-template.md`](references/benchmark-prompt-template.md) |
 
 ## 工作流
 
