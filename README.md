@@ -65,7 +65,7 @@ framework, workload, and target metrics.
 | [`sota-loop`](prompts/xllm-npu-sota-loop-prompts.md) | End-to-end optimization, TPOT/decode gaps, MTP validation |
 | [`eval-profiler`](prompts/xllm-npu-eval-profiler-prompts.md) | Service startup, evalscope, profiling, capacity/OOM |
 | [`pr-fix`](prompts/xllm-npu-pr-fix-prompts.md) | PR regressions, review replies, rebase, build gates |
-| [`op-migration`](prompts/xllm-npu-op-migration-prompts.md) | Operator migration, torch_npu/Triton-Ascend/AscendC |
+| [`operator-work`](prompts/xllm-npu-operator-work-prompts.md) | Operator work, Triton-Ascend AOT migration, xllm_ops runtime integration |
 
 ### D. Execute Workflow
 
@@ -80,7 +80,7 @@ CLAUDE.md           → Claude Code redirect to AGENTS.md
 config.example.json → Shared default configuration template
 config.json         → Local configuration SSOT, generated and gitignored
 prompts/            → Copy-ready task prompt templates (Chinese)
-skills/             → 11 procedural agent skills (eval, profiler, benchmark, …)
+skills/             → 12 procedural agent skills (eval, profiler, benchmark, operator integration, …)
 reference/
    knowledge/    → Immutable domain rules (NPU specs in config.json xllm.hardware.npu_specs)
    code-style/   → C++/Python/NPU code style conventions
@@ -103,7 +103,7 @@ runs/               → Execution workspace (gitignored)
 
 **`scripts/`** is the deterministic engine — cross-skill shared automation scripts that LLMs must not modify. Changes to these scripts require human review.
 
-**`skills/`** contains 11 procedural agent skills, each with a SKILL.md defining the execution workflow, evidence contracts, and local references. Mode 1 links them into generated `.agents/skills`; Mode 2 links them into the selected agent skills directory.
+**`skills/`** contains 12 procedural agent skills, each with a SKILL.md defining the execution workflow, evidence contracts, and local references. Mode 1 links them into generated `.agents/skills`; Mode 2 links them into the selected agent skills directory.
 
 ## 3 Typical Workflow
 
