@@ -1,0 +1,4 @@
+interface:
+  display_name: "xLLM Ops Integration"
+  short_description: "Wire xllm_ops kernels into xLLM NPU runtime"
+  default_prompt: "Use $xllm-npu-xllm-ops-integration to connect an xllm_ops custom operator into xLLM NPU runtime callsites."

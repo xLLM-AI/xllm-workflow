@@ -87,6 +87,8 @@ when their adapters and runbooks are added.
 | Crash, hang, HCCL, graph, or PagedAttention incident | `skills/xllm-npu-incident-triage/SKILL.md` |
 | NPU code review before PR | `skills/xllm-npu-code-review/SKILL.md` |
 | Operator migration | `skills/xllm-npu-op-migration/SKILL.md` |
+| Triton-Ascend operator migration | `skills/xllm-npu-triton-migration/SKILL.md` |
+| xllm_ops runtime integration | `skills/xllm-npu-xllm-ops-integration/SKILL.md` |
 
 ## 4. Configuration and Directory Guide
 

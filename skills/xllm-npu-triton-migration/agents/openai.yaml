@@ -1,0 +1,4 @@
+interface:
+  display_name: "xLLM NPU Triton Migration"
+  short_description: "Migrate Triton-Ascend ops into torch_npu_ops"
+  default_prompt: "Use $xllm-npu-triton-migration to migrate a Triton-Ascend operator into torch_npu_ops with AOT build and validation."
