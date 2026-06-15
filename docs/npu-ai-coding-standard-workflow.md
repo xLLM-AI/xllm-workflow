@@ -114,9 +114,11 @@ A useful plan should include:
 - accuracy, graph-mode, memory, communication, and compatibility risks;
 - the validation commands and artifacts that will prove or disprove the change.
 
-For operator work, use `skills/xllm-npu-op-migration/SKILL.md` before starting a
-low-level kernel experiment. Only proceed to kernel-level work after profiling
-shows that a kernel-level path is the right next step.
+For operator work, choose the narrowest existing entry point: use
+`skills/xllm-npu-triton-migration/SKILL.md` for Triton-Ascend AOT migration and
+`skills/xllm-npu-xllm-ops-integration/SKILL.md` when an existing xllm_ops custom
+op must be wired into xLLM runtime. Only proceed to kernel-level work after
+profiling shows that a kernel-level path is the right next step.
 
 ## Phase 5: Review-Gated Iteration
 

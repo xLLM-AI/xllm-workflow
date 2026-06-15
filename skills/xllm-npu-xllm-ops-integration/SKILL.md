@@ -8,7 +8,7 @@ description: xLLM NPU xllm_ops 到 xLLM runtime 接入能力。用于 third_part
 用于把已经存在于 `third_party/xllm_ops` 的 NPU custom op 接入 xLLM runtime，
 重点路径是 `xllm/core/kernels/npu/xllm_ops` 和上层调用点。它不是从外部仓库
 迁移算子源码到 `third_party/xllm_ops` 的 skill；那类任务使用
-`xllm-npu-ascendc-op-migration` 或 `xllm-npu-op-migration`。
+Triton-Ascend、AscendC、torch_npu 等来源对应的专项 skill 或目标仓本地规则。
 
 ## 先读资料
 

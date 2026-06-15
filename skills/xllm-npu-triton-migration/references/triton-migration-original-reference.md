@@ -120,15 +120,14 @@ def test_rope_inplace(batch, head, hidden_size = 512, rope_dim = 64, itype = tor
 # python setup.py
 INFO: Clearing triton cache directory: /root/.triton/cache
 INFO: Cleared triton cache directory: /root/.triton/cache
-INFO: Running pytest on all tests under /export/home/weinan5/zhongsunj
-zsj/third_party/torch_npu_ops/triton_npu ...
-INFO: Running pytest in /export/home/weinan5/zhongsunjian1/xllm�zsj/third_party/torch_npu_ops/triton_npu ...
+INFO: Running pytest on all tests under <repo>/third_party/torch_npu_ops/triton_npu ...
+INFO: Running pytest in <repo>/third_party/torch_npu_ops/triton_npu ...
 =======================================================================
 starts ================================================================
 platform linux -- Python 3.11.6, pytest-9.0.1, pluggy-1.6.0 -- /usr/bi
 cachedir: .pytest_cache
 hypothesis profile 'default'
-rootdir: /export/home/weinan5/zhongsunjian1/xllm-zsj/third_party/torch_
+rootdir: <repo>/third_party/torch_
 plugins: hypothesis-6.151.2, anyio-4.9.0
 collected 12 items
 triton_src/test_fused_recurrent_gated_delta_rule.py::test_accuracy_fus
@@ -165,16 +164,13 @@ INFO: Found binary: Xr9z6LT93nthtOj1MEXyhSebjGGdXwx2ZH8JTB-4_Q0/rope_i
 (kernel: rope_inplace_kernel)
 INFO: Scanned subdirectories, found 2 .npubin file(s)
 INFO: Found 2 unique kernel(s)
-INFO: Copying all found kernels to /export/home/weinan5/zhongsunjian1/
-zsj/third_party/torch_npu_ops/triton_npu/binary...
+INFO: Copying all found kernels to <repo>/third_party/torch_npu_ops/triton_npu/binary...
 INFO: Copied fused_recurrent_gated_delta_rule_fwd_kernel.npubin ->
-/export/home/weinan5/zhongsunjian1/xllm�zsj/third_party/torch_npu_ops/triton_npu/binary/fused_recurrent_gated_
+<repo>/third_party/torch_npu_ops/triton_npu/binary/fused_recurrent_gated_
 INFO: Copied fused_recurrent_gated_delta_rule_fwd_kernel.json ->
-/export/home/weinan5/zhongsunjian1/xllm�zsj/third_party/torch_npu_ops/triton_npu/binary/fused_recurrent_gated_
-INFO: Copied rope_inplace_kernel.npubin -> /export/home/weinan5/zhongs
-zsj/third_party/torch_npu_ops/triton_npu/binary/rope_inplace_kernel.np
-INFO: Copied rope_inplace_kernel.json -> /export/home/weinan5/zhongsun
-zsj/third_party/torch_npu_ops/triton_npu/binary/rope_inplace_kernel.js
+<repo>/third_party/torch_npu_ops/triton_npu/binary/fused_recurrent_gated_
+INFO: Copied rope_inplace_kernel.npubin -> <repo>/third_party/torch_npu_ops/triton_npu/binary/rope_inplace_kernel.np
+INFO: Copied rope_inplace_kernel.json -> <repo>/third_party/torch_npu_ops/triton_npu/binary/rope_inplace_kernel.js
 INFO: Summary - Copied: 2
 INFO: Script completed successfully
 
@@ -324,7 +320,7 @@ auto ret = op.execute(stream, gridX, gridY, gridZ, [&](ArgsBuilder& ab) {
 以rope_inplace_kernel为例，对应所需的参数输入如下，其中tt.ptr对应tensor输入，i32对应 int32，float对应f32，其他数据类型类似，刚好和triton签名中 x,sin,cos,head_dum.x_stride,cos_stride数量和类型保持一致，所以在constructArgs的时候， 也需要全部构建（具体这里为什么x_stride和cos_stride没有被常量折叠的原因未知），和ttir中 的签名定义保持一致是最稳妥的做法
 
 ```
-tutl.func public @rope_inplace_kernel(%arg0: !tt.ptr<bf16> (tt.divisibility = 16 : i32) loc("/export/home/weinan5/zhongsujian1/x11m-zsj/third_party/torch_npu_ops/triton_npu/triton_src/test_rope_inplace.py":7:0), %arg1: !tt.ptr<bf16> (tt.divisibility = 16 : i32) loc("/export/home/weinan5/zhongsujian1/x11m-zsj/third_party/torch_npu_ops/triton_npu/triton_src/test_rope_inplace.py":7:0), %arg2: !tt.ptr<bf16> (tt.divisibility = 16 : i32) loc("/export/home/weinan5/zhongsujian1/x11m-zsj/third_party/torch_npu_ops/triton_npu/triton_src/test_rope_inplace.py":7:0), %arg3: i32 loc("/export/home/weinan5/zhongsujian1/x11m-zsj/third_party/torch_npu_ops/triton_npu/triton_src/test_rope_inplace.py":7:0), %arg4: i32 (tt.divisibility = 16 : i32) loc("/export/home/weinan5/zhongsujian1/x11m-zsj/third_party/torch_npu_ops/triton_npu/triton_src/test_rope_inplace.py":7:0), %arg5: i32 (tt.divisibility = 16 : i32) loc("/export/home/weinan5/zhongsujian1/x11m-zsj/third_party/torch_npu_ops/triton_npu/triton_src/test_rope_inplace.py":7:0), %arg6: i32 (tt.divisibility = 16 : i32) loc("/export/home/weinan5/zhongsujian1/x11m-zsj/third_party/torch_npu_ops/triton_npu/triton_src/test_rope_inplace.py":7:0)) attributes {noinline = false} {
+tutl.func public @rope_inplace_kernel(%arg0: !tt.ptr<bf16> (tt.divisibility = 16 : i32) loc("<repo>/third_party/torch_npu_ops/triton_npu/triton_src/test_rope_inplace.py":7:0), %arg1: !tt.ptr<bf16> (tt.divisibility = 16 : i32) loc("<repo>/third_party/torch_npu_ops/triton_npu/triton_src/test_rope_inplace.py":7:0), %arg2: !tt.ptr<bf16> (tt.divisibility = 16 : i32) loc("<repo>/third_party/torch_npu_ops/triton_npu/triton_src/test_rope_inplace.py":7:0), %arg3: i32 loc("<repo>/third_party/torch_npu_ops/triton_npu/triton_src/test_rope_inplace.py":7:0), %arg4: i32 (tt.divisibility = 16 : i32) loc("<repo>/third_party/torch_npu_ops/triton_npu/triton_src/test_rope_inplace.py":7:0), %arg5: i32 (tt.divisibility = 16 : i32) loc("<repo>/third_party/torch_npu_ops/triton_npu/triton_src/test_rope_inplace.py":7:0), %arg6: i32 (tt.divisibility = 16 : i32) loc("<repo>/third_party/torch_npu_ops/triton_npu/triton_src/test_rope_inplace.py":7:0)) attributes {noinline = false} {
   %cst = arith.constant dense<0.000000e+00> : tensor<64xf32> loc(#loc1)
   %0 = arith.constant dense<0.000000e+00> : tensor<32xf32> loc(#loc1)
 ```
@@ -584,9 +580,9 @@ if __name__ == "__main__":
 
 root@07455a095062:~/.triton/cache# rm -rf *
 root@07455a095062:~/.triton/cache# cd -
-/home/z00881607/triton-workspace/triton_loader_demo
-root@07455a095062:/home/triton-workspace/triton_loader_demo# python triton_test.py
-root@07455a095062:/home/triton-workspace/triton_loader_demo# cd -
+<triton_workspace>/triton_loader_demo
+root@07455a095062:<triton_workspace>/triton_loader_demo# python triton_test.py
+root@07455a095062:<triton_workspace>/triton_loader_demo# cd -
 root@07455a095062:~/.triton/cache# find . -name *npubin
 /V7vIT3z_zN9Hm9mzoKOsE0tM2DT5wwySomZ1NaCmVes/triton_test_kernel.npubin
 /hmrfxN16qtsmfgolXQkWcyAFEt7FfSIJqUI_WyEi0HQ/triton_test_kernel.npubin

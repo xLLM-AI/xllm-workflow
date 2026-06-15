@@ -1,9 +1,9 @@
-# xLLM NPU 算子迁移中文 Prompts
+# xLLM NPU 算子工作中文 Prompts
 
 ## 场景 1：外部算子迁移到 xLLM
 
 ```text
-请使用 xllm-npu-op-migration，把 <operator> 从 <source_repo_or_impl> 迁移到 xLLM NPU 路径。
+请根据来源实现选择最窄的专项 skill，把 <operator> 从 <source_repo_or_impl> 迁移到 xLLM NPU 路径。
 
 输入：
 - 来源实现：<PyTorch | torch_npu | Triton-Ascend | AscendC | ATB | xllm_ops>
@@ -16,11 +16,12 @@
 流程：
 1. 先用 profiling 证明该算子路径确实是瓶颈。
 2. 盘点来源算子的语义：shape、dtype、layout、stream、workspace、in-place、graph 兼容性。
-3. 定义 xLLM 接口契约：输入输出 tensor、shape 约束、错误处理、fallback。
-4. 选择最低风险路径接入：优先复用成熟库，再考虑自定义 kernel。
-5. 添加 focused correctness test 和端到端 smoke。
-6. 对比算子级性能和模型级性能。
-7. 记录迁移风险、失败尝试和可复用 shape 经验。
+3. 选择专项入口：Triton-Ascend 使用 xllm-npu-triton-migration；已有 xllm_ops 接入 runtime 使用 xllm-npu-xllm-ops-integration；其他来源优先使用目标仓本地 skill 或成熟库接入。
+4. 定义 xLLM 接口契约：输入输出 tensor、shape 约束、错误处理、fallback。
+5. 选择最低风险路径接入：优先复用成熟库，再考虑自定义 kernel。
+6. 添加 focused correctness test 和端到端 smoke。
+7. 对比算子级性能和模型级性能。
+8. 记录迁移风险、失败尝试和可复用 shape 经验。
 ```
 
 ## 场景 2：torch_npu 融合算子替换
@@ -40,7 +41,7 @@
 ## 场景 3：Triton-Ascend AOT 接入评估
 
 ```text
-请使用 xllm-npu-op-migration 和 kernel-pilot，评估 <operator> 是否适合 Triton-Ascend AOT 接入。
+请使用 xllm-npu-triton-migration，评估 <operator> 是否适合 Triton-Ascend AOT 接入。
 
 输入：
 - 目标 shape：<shape_list>
@@ -58,7 +59,27 @@
 输出 go/no-go 结论和验证计划。
 ```
 
-## 场景 4：AscendC 自定义算子接入
+## 场景 4：xllm_ops runtime 接入
+
+```text
+请使用 xllm-npu-xllm-ops-integration，把 third_party/xllm_ops 中已经完成 build、wrapper 或精度验证的 <operator> 接入 xLLM runtime。
+
+输入：
+- xllm_ops 路径：<third_party/xllm_ops_path>
+- op 名称：<op_name>
+- API 符号：<api_symbol>
+- aclnn 名称：<aclnn_name_if_any>
+- runtime callsite：<xllm_runtime_path>
+- 验证范围：<static | build | op_accuracy | xllm_smoke | e2e_accuracy | performance>
+
+要求：
+1. 补齐 xLLM wrapper、xllm_ops_api.h、CMake 和上层 callsite。
+2. 保留 unsupported shape/dtype/layout 的 fallback 或明确替换边界。
+3. 先跑静态 harness，再跑最小 build、smoke、精度和性能验证。
+4. 输出接入报告，说明 custom OPP、graph/dynamic shape 和 host sync 风险。
+```
+
+## 场景 5：AscendC 自定义算子接入
 
 ```text
 请为 <operator> 设计 AscendC 自定义算子接入方案。
@@ -72,7 +93,7 @@
 6. 先输出方案，不要在 profiling 未证明收益前直接写 kernel。
 ```
 
-## 场景 5：kernel-pilot 准入判断
+## 场景 6：kernel-pilot 准入判断
 
 ```text
 请判断 <operator> 是否满足 kernel-pilot 准入条件。
@@ -87,7 +108,7 @@
 如果任一条件不满足，请输出 no-go 报告，并给出更安全的替代优化路径。
 ```
 
-## 场景 6：算子迁移后的回归验证
+## 场景 7：算子迁移后的回归验证
 
 ```text
 请验证 <operator> 迁移 patch 是否可合入。
