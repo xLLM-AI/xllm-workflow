@@ -3,6 +3,12 @@
 This runbook stores command templates for CEval probes and git bisect. Keep the
 main skill focused on the investigation workflow.
 
+Focused case studies:
+
+- [Qwen3.5 chunked prefill init-state accuracy case](qwen35-chunked-prefill-init-state-case.md)
+  shows how to localize a garbled-output regression to the first divergent
+  recurrent-state tensor instead of guessing at scheduler or kernel changes.
+
 ## CEval Two-Subset Probe
 
 Use Python to build JSON arguments and avoid shell escaping issues:

@@ -198,6 +198,7 @@ $RUN_ROOT/humanize/lineage.jsonl
 仅在当前任务相关时加载：
 
 - `references/qwen35-mtp-case.md`
+- `references/mtp-transpose-elimination-case.md`
 - `../xllm-npu-benchmark/references/mtp-benchmark-lessons.md`
 - `../xllm-npu-profiler/references/mtp-profiling-lessons.md`
 - `../../reference/pr_history/qwen35-mtp.md`
