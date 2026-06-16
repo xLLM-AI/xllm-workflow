@@ -65,7 +65,7 @@ codex
 ### D. 执行工作流
 
 正式工作遵循 `target → baseline → profiling → patch → accuracy → performance → record`。
-Skill 路由见 [AGENTS.md](AGENTS.md)，Phase 详情见 [docs/workflow](docs/npu-ai-coding-standard-workflow.md)。
+Skill 路由见 [AGENTS.md](AGENTS.md)，Phase 详情见 [docs/npu-ai-coding-standard-workflow.md](docs/npu-ai-coding-standard-workflow.md)。
 
 ## 2 目录一览
 

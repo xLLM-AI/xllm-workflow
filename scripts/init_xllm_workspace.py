@@ -66,7 +66,7 @@ def save_config(path: Path, config: dict[str, Any]) -> None:
 
 def display_path(path: Path) -> str:
     try:
-        return str(path.relative_to(ROOT))
+        return path.relative_to(ROOT).as_posix()
     except ValueError:
         return str(path)
 
@@ -274,6 +274,19 @@ def relative_symlink_target(source: Path, link: Path) -> str:
     return os.path.relpath(source.resolve(), link.parent.resolve())
 
 
+def link_or_copy_skill_dir(source: Path, link: Path) -> str:
+    """Create a skill symlink, falling back to a copy when symlinks are unavailable."""
+    target = relative_symlink_target(source, link)
+    try:
+        link.symlink_to(target, target_is_directory=True)
+        return "linked"
+    except (NotImplementedError, OSError) as exc:
+        if getattr(exc, "winerror", None) != 1314 and not isinstance(exc, NotImplementedError):
+            raise
+        shutil.copytree(source, link)
+        return "copied"
+
+
 def link_skill_dirs(
     skill_dirs: list[Path],
     skills_dir: Path,
@@ -291,11 +304,11 @@ def link_skill_dirs(
             skipped.append(f"{link_name} (目标已存在且不是软链)")
             continue
 
-        target = relative_symlink_target(source, link)
         if link.is_symlink() or link.exists():
             link.unlink()
-        link.symlink_to(target, target_is_directory=True)
-        linked.append(f"{link_name} -> {display_path(source)}")
+        mode = link_or_copy_skill_dir(source, link)
+        suffix = "" if mode == "linked" else " (copied; symlink unavailable)"
+        linked.append(f"{link_name} -> {display_path(source)}{suffix}")
 
     return linked, skipped
 
