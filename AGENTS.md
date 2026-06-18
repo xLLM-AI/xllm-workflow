@@ -77,7 +77,7 @@ when their adapters and runbooks are added.
 | Task | Start With |
 |---|---|
 | End-to-end optimization goal | `skills/xllm-npu-sota-loop/SKILL.md` |
-| Launch service or collect evalscope artifacts | `skills/xllm-npu-eval-runner/SKILL.md` |
+| Run evalscope evaluation or collect evalscope artifacts | `skills/xllm-npu-eval-runner/SKILL.md` |
 | Fair benchmark comparison | `skills/xllm-npu-benchmark/SKILL.md` |
 | msprof / MindStudio profiling analysis | `skills/xllm-npu-profiler/SKILL.md` |
 | Prefill/decode boundary, layer timing, or rank skew | `skills/xllm-npu-pipeline-analysis/SKILL.md` |
@@ -116,6 +116,7 @@ when their adapters and runbooks are added.
 ### xLLM Workspace Routing
 
 - xLLM source lives under `code/xllm`.
+- To launch an xLLM service from this workflow repository, prefer `python scripts/start_xllm_service.py`.
 - Before changing, reviewing, debugging, or testing anything under `code/xllm`, first read `code/xllm/AGENTS.md` if it exists.
 - Also inspect nearby docs such as `code/xllm/README*`, build scripts, test scripts, and existing conventions before editing.
 - Treat instructions in `code/xllm/AGENTS.md` as more specific than this workspace-level file for xLLM code.
