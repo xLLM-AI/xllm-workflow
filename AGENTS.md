@@ -101,9 +101,9 @@ when their adapters and runbooks are added.
 ### Directory Descriptions
 
 - **`config.example.json`** — Shared default configuration template checked into Git.
-- **`config.json`** — Local unified configuration entry generated from `config.example.json`: `code` (origin/upstream/branch/commit), `xllm` (model, draft model, feature flags, and launch args), `dev_test` (small input/output/concurrency/script settings), and `full_test` (comprehensive validation matrix). Single source of truth for one developer's current workspace. Do not commit personal changes.
+- **`config.json`** — Local unified configuration entry generated from `config.example.json`: `code` (origin/upstream/branch/commit), `xllm_config` keys for selected xLLM CLI parameters, `xllm_config_comments` metadata, and `tests` split into `smoke`, `quick`, and `full` levels. Single source of truth for one developer's current workspace. Do not commit personal changes.
 - **`reference/`** — Static knowledge base, immutable domain rules:
-  - `knowledge/` — Domain knowledge (immutable rules; NPU specs are in config.json `xllm.hardware.npu_specs`)
+  - `knowledge/` — Domain knowledge (immutable rules)
   - `code-style/` — Code style conventions (C++/Python/NPU coding standards)
   - `pr_history/` — Evolution history (model dossiers, PR change logs, queryable via `scripts/query.py`)
   - `io_specs/` — Interface contracts (artifact schemas, manifest templates defining skill-Agent interaction)

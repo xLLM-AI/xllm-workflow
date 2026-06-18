@@ -82,7 +82,7 @@ config.json         → Local configuration SSOT, generated and gitignored
 prompts/            → Copy-ready task prompt templates (Chinese)
 skills/             → 12 procedural agent skills (eval, profiler, benchmark, operator integration, …)
 reference/
-   knowledge/    → Immutable domain rules (NPU specs in config.json xllm.hardware.npu_specs)
+   knowledge/    → Immutable domain rules and hardware references
    code-style/   → C++/Python/NPU code style conventions
    io_specs/     → Artifact schemas (run manifest, perf, accuracy, profiling)
    pr_history/   → Model dossiers and PR history (queryable via scripts/query.py)
@@ -95,7 +95,7 @@ code/               → External source mount (gitignored)
 runs/               → Execution workspace (gitignored)
 ```
 
-**`config.example.json`** is the shared default template. **`config.json`** is the local single source of truth for one developer's workspace and is intentionally gitignored. Its top-level order is `code` (origin/upstream/branch/commit), `xllm` (model, draft model, feature flags, and launch args aligned with xLLM startup parameters), `dev_test` (small input/output/concurrency/dtype/script settings), and `full_test` (comprehensive validation matrix). Skills and scripts read local config.json instead of hardcoding values.
+**`config.example.json`** is the shared default template. **`config.json`** is the local single source of truth for one developer's workspace and is intentionally gitignored. Its top-level order is `code` (origin/upstream/branch/commit), `xllm_config` keys for selected xLLM CLI parameters, `xllm_config_comments` metadata, and `tests` with `smoke`, `quick`, and `full` validation levels. Skills and scripts read local config.json instead of hardcoding values.
 
 **`reference/`** is the static knowledge base — immutable domain rules that never change based on a single run. Skills query it for hardware limits, code style, artifact schemas, and historical optimization context.
 

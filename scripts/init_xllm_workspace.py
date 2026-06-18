@@ -42,6 +42,19 @@ def run(cmd: list[str], cwd: Path | None = None) -> None:
     subprocess.run(cmd, cwd=cwd, check=True)
 
 
+def capture(cmd: list[str], cwd: Path | None = None) -> str:
+    result = subprocess.run(
+        cmd,
+        cwd=cwd,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return ""
+    return result.stdout.strip()
+
+
 def load_config(path: Path, template_path: Path = DEFAULT_CONFIG_TEMPLATE) -> dict[str, Any]:
     if not path.exists():
         if template_path.exists() and path.name == "config.json":
@@ -120,6 +133,10 @@ def normalize_repo_config(config: dict[str, Any]) -> dict[str, Any]:
     upstream.setdefault("url", "")
     upstream.setdefault("branch", "")
     upstream.setdefault("commit", "")
+    if origin.get("branch") and origin.get("commit"):
+        origin["commit"] = ""
+    if upstream.get("branch") and upstream.get("commit"):
+        upstream["commit"] = ""
 
     legacy = config.get(LEGACY_CONFIG_KEY, {})
     if isinstance(legacy, dict) and isinstance(legacy.get(XLLM_KEY), dict):
@@ -167,8 +184,10 @@ def resolve_repo_config(
         effective_ref_type = ref_type or infer_ref_type(ref) or "branch"
         if effective_ref_type == "commit":
             origin["commit"] = ref
+            origin["branch"] = ""
         else:
             origin["branch"] = ref
+            origin["commit"] = ""
         changed = True
 
     selected = selected_repo_source(repo)
@@ -205,6 +224,97 @@ def resolve_repo_config(
         print(f"[config] 已更新 {display_path(config_path)}")
 
     return selected
+
+
+def is_git_checkout(path: Path) -> bool:
+    return capture(["git", "rev-parse", "--is-inside-work-tree"], cwd=path) == "true"
+
+
+def git_remote_url(path: Path, remote: str) -> str:
+    return capture(["git", "remote", "get-url", remote], cwd=path)
+
+
+def git_current_branch(path: Path) -> str:
+    return capture(["git", "symbolic-ref", "--quiet", "--short", "HEAD"], cwd=path)
+
+
+def git_current_commit(path: Path) -> str:
+    return capture(["git", "rev-parse", "HEAD"], cwd=path)
+
+
+def git_remote_default_branch(path: Path, remote: str) -> str:
+    ref = capture(["git", "symbolic-ref", "--quiet", f"refs/remotes/{remote}/HEAD"], cwd=path)
+    prefix = f"refs/remotes/{remote}/"
+    if ref.startswith(prefix):
+        return ref[len(prefix):]
+    return ""
+
+
+def git_remote_branch_commit(path: Path, remote: str, branch: str) -> str:
+    if not branch:
+        return ""
+    return capture(["git", "rev-parse", "--verify", f"refs/remotes/{remote}/{branch}"], cwd=path)
+
+
+def set_if_different(target: dict[str, Any], key: str, value: str) -> bool:
+    if not value or target.get(key) == value:
+        return False
+    target[key] = value
+    return True
+
+
+def set_value_if_different(target: dict[str, Any], key: str, value: str) -> bool:
+    if target.get(key) == value:
+        return False
+    target[key] = value
+    return True
+
+
+def fill_repo_config_from_checkout(
+    config: dict[str, Any],
+    config_path: Path,
+    xllm_dir: Path,
+) -> bool:
+    """Record details from an existing xLLM git checkout into config.json."""
+    if not xllm_dir.exists() or not is_git_checkout(xllm_dir):
+        return False
+
+    repo = normalize_repo_config(config)
+    origin = repo["origin"]
+    upstream = repo["upstream"]
+    changed = False
+
+    path_value = display_path(xllm_dir)
+    if repo.get("path") != path_value:
+        repo["path"] = path_value
+        changed = True
+
+    changed |= set_if_different(origin, "url", git_remote_url(xllm_dir, "origin"))
+    origin_branch = git_current_branch(xllm_dir)
+    if origin_branch:
+        changed |= set_value_if_different(origin, "branch", origin_branch)
+        changed |= set_value_if_different(origin, "commit", "")
+    else:
+        changed |= set_value_if_different(origin, "branch", "")
+        changed |= set_if_different(origin, "commit", git_current_commit(xllm_dir))
+
+    changed |= set_if_different(upstream, "url", git_remote_url(xllm_dir, "upstream"))
+    upstream_branch = git_remote_default_branch(xllm_dir, "upstream")
+    if upstream_branch:
+        changed |= set_value_if_different(upstream, "branch", upstream_branch)
+        changed |= set_value_if_different(upstream, "commit", "")
+    else:
+        changed |= set_value_if_different(upstream, "branch", "")
+        changed |= set_if_different(
+            upstream,
+            "commit",
+            git_remote_branch_commit(xllm_dir, "upstream", upstream_branch),
+        )
+
+    if changed:
+        save_config(config_path, config)
+        print(f"[config] 已从现有 xLLM 仓库更新 {display_path(config_path)}")
+    return changed
 
 
 def dir_has_code(path: Path) -> bool:
@@ -442,6 +552,7 @@ def main() -> int:
 
     try:
         config = load_config(config_path)
+        fill_repo_config_from_checkout(config, config_path, xllm_dir)
         repo = resolve_repo_config(
             config,
             config_path,
@@ -451,6 +562,7 @@ def main() -> int:
             args.yes,
         )
         clone_xllm(repo, xllm_dir)
+        fill_repo_config_from_checkout(config, config_path, xllm_dir)
         if mode == "workspace":
             project_linked, project_skipped, xllm_linked, xllm_skipped = link_workspace_skills(xllm_dir)
             print_workspace_summary(xllm_dir, project_linked, project_skipped, xllm_linked, xllm_skipped)

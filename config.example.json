@@ -14,154 +14,48 @@
       }
     }
   },
-  "xllm": {
-    "model": {
-      "model": "",
-      "model_id": "qwen35-27b"
-    },
-    "draft_model": {
-      "draft_model": "",
-      "draft_devices": "npu:0",
-      "num_speculative_tokens": 0
-    },
-    "launch_args": {
-      "master_node_addr": "127.0.0.1:19888",
-      "host": "",
-      "port": 8010,
-      "devices": "npu:0,npu:1,npu:2,npu:3",
-      "nnodes": 4,
-      "node_rank": 0,
-      "max_memory_utilization": 0.8,
-      "max_tokens_per_batch": 10240,
-      "max_seqs_per_batch": 1024,
-      "communication_backend": "hccl",
-      "block_size": 128,
-      "task": "generate",
-      "max_cache_size": 0,
-      "kv_cache_dtype": "auto",
-      "dp_size": 1,
-      "ep_size": 1,
-      "expert_parallel_degree": 0,
-      "enable_chunked_prefill": true,
-      "enable_prefill_sp": false,
-      "enable_schedule_overlap": false,
-      "enable_prefix_cache": true,
-      "enable_disagg_pd": false,
-      "enable_graph": false,
-      "enable_graph_mode_decode_no_padding": false,
-      "enable_prefill_piecewise_graph": false,
-      "max_tokens_for_graph_mode": 2048,
-      "enable_service_routing": false,
-      "enable_shm": true,
-      "max_concurrent_requests": 200,
-      "num_request_handling_threads": 4,
-      "num_response_handling_threads": 4,
-      "prefill_scheduling_memory_usage_threshold": 0.95,
-      "rank_tablefile": ""
-    },
-    "hardware": {
-      "npu": "Atlas 800I A3",
-      "npu_specs": {
-        "atlas_800i_a3_per_npu_estimate": {
-          "name": "Huawei Atlas 800I A3 per-NPU estimate",
-          "source": "https://e.huawei.com/cn/products/computing/ascend/atlas-800i-a3",
-          "notes": "Derived from the official 8-NPU server specification: 4.48 PFLOPS FP16, 8.96 POPS INT8, 8 * 128GB on-chip memory, 3.2TB/s memory bandwidth. Use npu-smi, CANN PlatformAscendC, and profiling artifacts for formal conclusions.",
-          "peak_flops": {
-            "bf16": null,
-            "fp16": 560000000000000,
-            "int8": 1120000000000000
-          },
-          "memory_bandwidth_bytes_per_sec": 3200000000000,
-          "hbm_bytes": 137438953472
-        },
-        "atlas_800t_a3_per_npu_estimate": {
-          "name": "Huawei Atlas 800T A3 per-NPU estimate",
-          "source": "https://e.huawei.com/cn/products/computing/ascend/atlas-800t-a3",
-          "notes": "Derived from the official 8-NPU server specification: 6.0 PFLOPS FP16, 12.0 POPS INT8, 8 * 128GB on-chip memory, 3.2TB/s memory bandwidth.",
-          "peak_flops": {
-            "bf16": null,
-            "fp16": 750000000000000,
-            "int8": 1500000000000000
-          },
-          "memory_bandwidth_bytes_per_sec": 3200000000000,
-          "hbm_bytes": 137438953472
-        },
-        "atlas_300i_a2_64gb": {
-          "name": "Huawei Atlas 300I A2 64GB",
-          "source": "https://e.huawei.com/cn/products/computing/ascend/atlas-300i-a2",
-          "notes": "Official product page lists 280 TFLOPS FP16, 560 TOPS INT8, 64GB on-chip memory, and 1.6TB/s memory bandwidth.",
-          "peak_flops": {
-            "bf16": null,
-            "fp16": 280000000000000,
-            "int8": 560000000000000
-          },
-          "memory_bandwidth_bytes_per_sec": 1600000000000,
-          "hbm_bytes": 68719476736
-        },
-        "atlas_300i_a2_32gb": {
-          "name": "Huawei Atlas 300I A2 32GB",
-          "source": "https://e.huawei.com/cn/products/computing/ascend/atlas-300i-a2",
-          "notes": "Official product page lists 280 TFLOPS FP16, 560 TOPS INT8, 32GB on-chip memory, and 0.8TB/s memory bandwidth.",
-          "peak_flops": {
-            "bf16": null,
-            "fp16": 280000000000000,
-            "int8": 560000000000000
-          },
-          "memory_bandwidth_bytes_per_sec": 800000000000,
-          "hbm_bytes": 34359738368
-        }
-      }
-    }
+  "xllm_config": {
+    "model": "",
+    "model_id": "",
+    "max_memory_utilization": 0.8,
+    "max_seqs_per_batch": 1024,
+    "max_tokens_per_chunk_for_prefill": -1,
+    "max_tokens_per_batch": 10240,
+    "tp_size": 1,
+    "draft_model": "",
+    "num_speculative_tokens": 0
   },
-  "dev_test": {
-    "input": {
+  "xllm_config_comments": {
+    "model": "Hugging Face 模型名称或模型路径; xLLM 启动时 --model 是唯一必填参数.",
+    "model_id": "Hugging Face 模型名称, 非路径; 用于需要展示或区分模型 ID 的场景.",
+    "max_memory_utilization": "模型推理可使用的设备显存比例, 包括模型权重和 KV Cache; 官方默认值 0.8.",
+    "max_seqs_per_batch": "每个 batch 可处理的最大 sequence 数; 官方默认值 1024.",
+    "max_tokens_per_chunk_for_prefill": "chunked prefill 阶段单个请求的每个 chunk 最大 token 数; -1 表示使用默认策略.",
+    "max_tokens_per_batch": "每个 batch 可处理的最大 token 数; 官方默认值 10240.",
+    "tp_size": "Tensor parallel 规模; 官方默认值 1.",
+    "draft_model": "Speculative decoding / MTP 使用的 draft 模型路径; 为空表示不启用外部 draft 模型.",
+    "num_speculative_tokens": "每轮 speculative decoding 生成的 speculative token 数; 0 表示不启用投机解码."
+  },
+  "tests": {
+    "smoke": {
       "prompt": "Hello, introduce xLLM in one sentence.",
-      "input_tokens": 128,
-      "output_tokens": 128
-    },
-    "output": {
-      "max_tokens": 128,
       "temperature": 0.0,
-      "top_p": 1.0
+      "concurrency": [1]
     },
-    "runtime": {
-      "concurrency": 1,
-      "dtype": "bfloat16",
-      "timeout_seconds": 300
-    },
-    "scripts": {
-      "build": "code/xllm/cibuild/build_npu.sh",
-      "serve": "",
-      "smoke": "",
-      "perf": "skills/xllm-npu-eval-runner/scripts/eval_perf.sh",
-      "accuracy": "skills/xllm-npu-eval-runner/scripts/eval_acc.sh"
-    }
-  },
-  "full_test": {
-    "models": ["qwen35-27b", "deepseek-v3", "glm-5"],
-    "frameworks": ["xllm", "vllm-ascend", "sglang-npu"],
-    "npus": ["Atlas 800I A3", "Atlas 300I A2 64GB"],
-    "workloads": [
-      {
-        "name": "short_context",
-        "input_tokens": 512,
-        "output_tokens": 128,
-        "concurrency": [1, 4, 8, 16]
-      },
-      {
-        "name": "long_context",
-        "input_tokens": 4096,
-        "output_tokens": 512,
-        "concurrency": [1, 2, 4]
+    "quick": {
+      "datasets": ["ceval"],
+      "num_questions": 10,
+      "concurrency": [1, 4],
+      "sampling": {
+        "temperature": 0.0,
+        "top_p": 1.0,
+        "top_k": null
       }
-    ],
-    "metrics": ["ttft_ms", "tpot_ms", "tokens_per_second", "success_rate"],
-    "accuracy": {
-      "datasets": ["gsm8k_gen_0_shot_cot_chat_prompt", "ceval_gen_0_shot_cot_chat_prompt"],
-      "script": "skills/xllm-npu-eval-runner/scripts/eval_acc.sh"
     },
-    "performance": {
-      "script": "skills/xllm-npu-eval-runner/scripts/eval_perf.sh"
+    "full": {
+      "models": ["qwen35-27b", "deepseek-v3", "glm-5"],
+      "datasets": ["gsm8k", "ceval"],
+      "max_test_time_hours": 8
     }
   }
 }
