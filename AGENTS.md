@@ -77,6 +77,7 @@ when their adapters and runbooks are added.
 | Task | Start With |
 |---|---|
 | End-to-end optimization goal | `skills/xllm-npu-sota-loop/SKILL.md` |
+| Build, compile, build gate, or PR rebase build validation | `skills/xllm-npu-eval-runner/SKILL.md` |
 | Run evalscope evaluation or collect evalscope artifacts | `skills/xllm-npu-eval-runner/SKILL.md` |
 | Fair benchmark comparison | `skills/xllm-npu-benchmark/SKILL.md` |
 | msprof / MindStudio profiling analysis | `skills/xllm-npu-profiler/SKILL.md` |
@@ -85,6 +86,7 @@ when their adapters and runbooks are added.
 | FLOPs, MFU, or hardware lower-bound estimates | `skills/xllm-npu-compute-simulation/SKILL.md` |
 | Garbled output, CEval drop, or GPU/NPU mismatch | `skills/xllm-npu-accuracy-debug/SKILL.md` |
 | Crash, hang, HCCL, graph, or PagedAttention incident | `skills/xllm-npu-incident-triage/SKILL.md` |
+| Build failure, link failure, missing submodule, or build cache pollution | `skills/xllm-npu-incident-triage/SKILL.md` |
 | NPU code review before PR | `skills/xllm-npu-code-review/SKILL.md` |
 | Triton-Ascend operator migration | `skills/xllm-npu-triton-migration/SKILL.md` |
 | xllm_ops runtime integration | `skills/xllm-npu-xllm-ops-integration/SKILL.md` |

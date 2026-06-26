@@ -63,7 +63,7 @@ framework, workload, and target metrics.
 | Prompt | Scenario |
 |---|---|
 | [`sota-loop`](prompts/xllm-npu-sota-loop-prompts.md) | End-to-end optimization, TPOT/decode gaps, MTP validation |
-| [`eval-profiler`](prompts/xllm-npu-eval-profiler-prompts.md) | Service startup, evalscope, profiling, capacity/OOM |
+| [`eval-profiler`](prompts/xllm-npu-eval-profiler-prompts.md) | Build gates, service startup, evalscope, profiling, capacity/OOM |
 | [`pr-fix`](prompts/xllm-npu-pr-fix-prompts.md) | PR regressions, review replies, rebase, build gates |
 | [`operator-work`](prompts/xllm-npu-operator-work-prompts.md) | Operator work, Triton-Ascend AOT migration, xllm_ops runtime integration |
 

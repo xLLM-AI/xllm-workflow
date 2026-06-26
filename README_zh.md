@@ -58,7 +58,7 @@ codex
 | Prompt | 场景 |
 |---|---|
 | [`sota-loop`](prompts/xllm-npu-sota-loop-prompts.md) | 端到端优化、TPOT/decode gap、MTP 验证 |
-| [`eval-profiler`](prompts/xllm-npu-eval-profiler-prompts.md) | 服务启动、evalscope、profiling、容量/OOM |
+| [`eval-profiler`](prompts/xllm-npu-eval-profiler-prompts.md) | 编译门禁、服务启动、evalscope、profiling、容量/OOM |
 | [`pr-fix`](prompts/xllm-npu-pr-fix-prompts.md) | PR 回归、review 回复、rebase、编译门禁 |
 | [`operator-work`](prompts/xllm-npu-operator-work-prompts.md) | 算子工作、Triton-Ascend AOT 迁移、xllm_ops runtime 接入 |
 
