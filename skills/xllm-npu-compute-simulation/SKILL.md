@@ -13,7 +13,7 @@ description: LLM serving 的 NPU 计算量模拟。用于判断 kernel 是否接
   KV heads、vocab size，以及 MoE 配置。
 - Serving shape：batch、input tokens、output tokens、TP/PP/EP、dtype。
 - 可用时提供 profiling kernel table。
-- NPU 规格来自 [`../../config.json`](../../config.json)（读取 `static.npu_specs` 字段）。
+- NPU 规格来自 [`../../reference/knowledge/npu-hardware-specs.json`](../../reference/knowledge/npu-hardware-specs.json) 静态参考和实际机器证据.
 
 ## 工作流
 
@@ -48,5 +48,5 @@ runs/compute/<run_id>/
 
 ## 参考资料
 
-- [`../../config.json`](../../config.json) — 读取 `static.npu_specs` 字段
+- [`../../reference/knowledge/npu-hardware-specs.json`](../../reference/knowledge/npu-hardware-specs.json) — NPU 硬件静态参考
 - [`references/llm-flops-formulas.md`](references/llm-flops-formulas.md)

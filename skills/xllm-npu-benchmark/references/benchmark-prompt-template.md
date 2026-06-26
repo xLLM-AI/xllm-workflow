@@ -10,11 +10,11 @@
 | 变量 | 说明 | 示例 |
 |------|------|------|
 | 运行模式 | full / incremental | full |
-| 模型权重 | 模型路径 | /export/home/models/Qwen3.5-27B |
+| 模型权重 | 模型路径 | `<model-root>/Qwen3.5-27B` |
 | TP | 张量并行度 | 2 |
 | 并发数 | parallel 列表 | 1, 2, 4 |
-| artifact root | 产物根目录 | /export/home/weinan5/wanghao/runs/20260610_mtp |
-| vLLM 历史结果路径 | 仅 incremental 模式 | /export/home/weinan5/wanghao/runs/20260610_parallel_{parallel}/vllm-ascend/perf/ |
+| artifact root | 产物根目录 | `<artifact-root>/20260610_mtp` |
+| vLLM 历史结果路径 | 仅 incremental 模式 | `<artifact-root>/20260610_parallel_{parallel}/vllm-ascend/perf/` |
 | xllm 容器 | xLLM 容器名 | cann9-xllm-wh |
 | vllm 容器 | vLLM 容器名 | vllm-018rc1-wh |
 | evalscope 容器 | evalscope 执行容器名 | cann8.5-xllm-wh |
@@ -106,13 +106,13 @@ evalscope执行容器：<evalscope_container>
 
 ```
 运行模式：full
-artifact root：/export/home/weinan5/wanghao/runs/20260610_bench
+artifact root：`<artifact-root>/20260610_bench`
 ```
 
 ### 增量对比
 
 ```
 运行模式：incremental
-artifact root：/export/home/weinan5/wanghao/runs/20260610_mtp
-vLLM历史结果路径：/export/home/weinan5/wanghao/runs/20260610_parallel_{parallel}/vllm-ascend/perf/
+artifact root：`<artifact-root>/20260610_mtp`
+vLLM历史结果路径：`<artifact-root>/20260610_parallel_{parallel}/vllm-ascend/perf/`
 ```

@@ -77,7 +77,7 @@ config.json         → 本地配置 SSOT，自动生成且不提交
 prompts/            → 可直接复制的中文任务 Prompt 模板
 skills/             → 12 个过程化 agent skill（评测、profiler、benchmark、算子接入…）
 reference/
-   knowledge/    → 不可变领域规则（NPU 规格在 config.json xllm.hardware.npu_specs）
+   knowledge/    → 不可变领域规则与硬件参考
    code-style/   → C++/Python/NPU 代码风格约定
    io_specs/     → Artifact schema（manifest、perf、accuracy、profiling）
    pr_history/   → 模型 dossier 与 PR 历史（可通过 scripts/query.py 查询）
@@ -90,9 +90,9 @@ code/               → 外部源码挂载（gitignored）
 runs/               → 执行现场（gitignored）
 ```
 
-**`config.example.json`** 是共享默认模板。**`config.json`** 是每个开发者本地工作区的配置唯一入口（SSOT），会被 Git 忽略。顶层顺序为 `code`（origin/upstream/branch/commit）、`xllm`（模型、草稿模型、关键特性开关，以及与 xLLM 启动参数一致的 launch args）、`dev_test`（小规模输入、输出、并发、dtype、测试脚本）和 `full_test`（全面验证矩阵）。Skills 和脚本统一读取本地 config.json，不再硬编码。
+**`config.example.json`** 是共享默认模板. **`config.json`** 是每个开发者本地工作区的配置唯一入口 (SSOT), 会被 Git 忽略. 顶层顺序为 `code` (origin/upstream/branch/commit), 精选 xLLM CLI 参数 `xllm_config`, 说明元数据 `xllm_config_comments` 和按 `smoke`, `quick`, `full` 三档划分的 `tests`. Skills 和脚本统一读取本地 config.json, 不再硬编码.
 
-**`reference/`** 是静态知识基石——不可变的领域规则，不会因单次运行而改变。Skills 从这里查询硬件限制、代码风格、artifact schema 和历史优化上下文。
+**`reference/`** 是静态知识基石 - 不可变的领域规则, 不会因单次运行而改变. Skills 从这里查询硬件限制, 代码风格, artifact schema 和历史优化上下文.
 
 **`humanize/`** 是经验飞轮——Agent 把经验证的排障教训写入此处，使工作区越用越聪明。具体 ledger 在运行根目录下生成，仅持久价值的教训回流到本目录。
 

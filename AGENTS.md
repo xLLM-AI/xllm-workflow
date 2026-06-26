@@ -77,7 +77,7 @@ when their adapters and runbooks are added.
 | Task | Start With |
 |---|---|
 | End-to-end optimization goal | `skills/xllm-npu-sota-loop/SKILL.md` |
-| Launch service or collect evalscope artifacts | `skills/xllm-npu-eval-runner/SKILL.md` |
+| Run evalscope evaluation or collect evalscope artifacts | `skills/xllm-npu-eval-runner/SKILL.md` |
 | Fair benchmark comparison | `skills/xllm-npu-benchmark/SKILL.md` |
 | msprof / MindStudio profiling analysis | `skills/xllm-npu-profiler/SKILL.md` |
 | Prefill/decode boundary, layer timing, or rank skew | `skills/xllm-npu-pipeline-analysis/SKILL.md` |
@@ -101,9 +101,9 @@ when their adapters and runbooks are added.
 ### Directory Descriptions
 
 - **`config.example.json`** — Shared default configuration template checked into Git.
-- **`config.json`** — Local unified configuration entry generated from `config.example.json`: `code` (origin/upstream/branch/commit), `xllm` (model, draft model, feature flags, and launch args), `dev_test` (small input/output/concurrency/script settings), and `full_test` (comprehensive validation matrix). Single source of truth for one developer's current workspace. Do not commit personal changes.
+- **`config.json`** — Local unified configuration entry generated from `config.example.json`: `code` (origin/upstream/branch/commit), `xllm_config` keys for selected xLLM CLI parameters, `xllm_config_comments` metadata, and `tests` split into `smoke`, `quick`, and `full` levels. Single source of truth for one developer's current workspace. Do not commit personal changes.
 - **`reference/`** — Static knowledge base, immutable domain rules:
-  - `knowledge/` — Domain knowledge (immutable rules; NPU specs are in config.json `xllm.hardware.npu_specs`)
+  - `knowledge/` — Domain knowledge (immutable rules)
   - `code-style/` — Code style conventions (C++/Python/NPU coding standards)
   - `pr_history/` — Evolution history (model dossiers, PR change logs, queryable via `scripts/query.py`)
   - `io_specs/` — Interface contracts (artifact schemas, manifest templates defining skill-Agent interaction)
@@ -116,6 +116,7 @@ when their adapters and runbooks are added.
 ### xLLM Workspace Routing
 
 - xLLM source lives under `code/xllm`.
+- To launch an xLLM service from this workflow repository, prefer `python scripts/start_xllm_service.py`.
 - Before changing, reviewing, debugging, or testing anything under `code/xllm`, first read `code/xllm/AGENTS.md` if it exists.
 - Also inspect nearby docs such as `code/xllm/README*`, build scripts, test scripts, and existing conventions before editing.
 - Treat instructions in `code/xllm/AGENTS.md` as more specific than this workspace-level file for xLLM code.
