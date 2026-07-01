@@ -23,28 +23,24 @@
 ## 场景 2：evalscope 性能评测，必须带 warmup
 
 ```text
-请使用 xllm-npu-eval-runner 执行 evalscope 性能评测。
+请使用 xllm-npu-perf-runner 执行 evalscope 性能评测。
+若服务未启动，请先使用 xllm-npu-server-manager 启动服务。
 
 配置：
-- URL：<api_url>/v1/chat/completions
-- tokenizer：<tokenizer_path>
+- API URL：<api_url>
 - 模型名：<model_name>
-- dataset：<random | line_by_line | custom>
-- 输入/输出：<input_tokens>/<output_tokens>
-- parallel=<parallel>
-- number=<number>
-- warmup-num=<warmup_num>
-- temperature=<temperature>
-- top_p=<top_p>
-- top_k=<top_k>
-- ignore_eos=<true_or_false>
-- outputs-dir：<run_root>/perf/<run_id>
+- tokenizer：<tokenizer_path>
+- TP=<tp>（用于服务启动配置，若服务已运行则忽略）
+- parallel=<parallel_list，如 1,2,4>（并发数列表，逐个测试）
+- number=<number，每个并发场景的请求数，如 4>
+- artifact root：<run_root>
 
 要求：
-1. warmup-num 必须大于 0，除非明确是在测冷启动。
-2. 保存 evalscope 原始输出、metrics.json、report.md 和 manifest。
-3. 输出 TTFT、TPOT、TPS、吞吐、P50/P90/P99。
-4. 标记本次结果是否可用于正式性能结论。
+1. 确认 evalscope 已安装（evalscope + evalscope[perf]）。
+2. 更新 scripts/eval_perf.sh 中的 model、url、tokenizer-path，并按用户指定的 parallel 列表和 number 生成对应的 evalscope perf 命令块。
+3. warmup-num 必须大于 0，除非明确是在测冷启动。
+4. 结果输出到 $RUN_ROOT/perf/，保留 evalscope 原始目录，提取 benchmark_summary.json 同步到 metrics.json。
+5. 输出 TTFT、TPOT、TPS、吞吐、P50/P90/P99。
 ```
 
 ## 场景 3：CEval 指定分类精度评测
