@@ -16,6 +16,12 @@ description: 在昇腾 NPU 上进行 xLLM、vLLM-Ascend、SGLang NPU 等 OpenAI-
 
 如果用户只要求“跑一下服务/评测”，先用 `xllm-npu-eval-runner`；如果用户要求“公平比较/性能结论/PR 证据”，使用本 skill。
 
+## 子 Skill 依赖
+
+| 职责 | 使用 |
+|---|---|
+| 报告生成 | `xllm-npu-report-writer`（模板：`references/report-template.md`） |
+
 ## 必读规则
 
 正式 benchmark 必须满足这些条件，否则只能标记为 `smoke/debug`：
@@ -45,6 +51,7 @@ description: 在昇腾 NPU 上进行 xLLM、vLLM-Ascend、SGLang NPU 等 OpenAI-
 | MTP/speculative decoding、接受率、draft model、`/vars` counter | [`references/mtp-benchmark-lessons.md`](references/mtp-benchmark-lessons.md) |
 | chunked prefill 是否真正生效、prefill profiling 对比 | [`references/chunked-prefill-benchmark.md`](references/chunked-prefill-benchmark.md) |
 | 报告格式规范：中文撰写、avg/p50/p90/p99 完整指标、分并发报告 + 总报告结构 | [`references/report-format-spec.md`](references/report-format-spec.md) |
+| A/B 对比报告模板：总报告 + 分并发报告的完整占位符模板 | [`references/report-template.md`](references/report-template.md) |
 | 标准 prompt 模板：支持 full（全量对比）和 incremental（增量对比）两种模式 | [`references/benchmark-prompt-template.md`](references/benchmark-prompt-template.md) |
 
 ## 工作流
@@ -134,9 +141,26 @@ python scripts/compare_npu_benchmark.py \
 
 ### 6. 输出结论
 
-结论必须区分“数据事实”和“可写入 PR 的判断”。缺少门禁、warmup、原始日志、manifest 或公平性证据时，不要写百分比收益。
+结论必须区分"数据事实"和"可写入 PR 的判断"。缺少门禁、warmup、原始日志、manifest 或公平性证据时，不要写百分比收益。
 
-使用这个报告模板：
+#### 报告生成
+
+委托 `xllm-npu-report-writer` 生成报告，传入本 skill 的模板：
+
+```
+加载 xllm-npu-report-writer，参数：
+  Run Root: <artifact_root>
+  template_path: skills/xllm-npu-benchmark/references/report-template.md
+  report_type: benchmark
+```
+
+report-writer 将按 `references/report-template.md` 的结构生成：
+- 总报告：`<artifact_root>/report.md`
+- 分并发报告：`<artifact_root>/parallel_{P}/comparison/report.md`
+
+报告格式同时遵循 `references/report-format-spec.md` 的规范（中文、avg/p50/p90/p99）。
+
+#### 结论摘要（嵌入报告最终结论章节）
 
 ```markdown
 ## Benchmark Conclusion

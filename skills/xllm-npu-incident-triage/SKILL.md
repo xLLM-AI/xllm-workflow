@@ -266,7 +266,7 @@ file /usr/local/lib64/python3.11/site-packages/torch/lib/libtorch.so
 按需加载：
 - [references/npu-error-catalog.md](references/npu-error-catalog.md) — 完整 NPU 错误码目录
 - [references/replay-workflow.md](references/replay-workflow.md) — 复现工作流模板
-- [references/ascend-profiling-formats.md](../xllm-npu-profiler/references/ascend-profiling-formats.md) — Profiling 数据格式
+- [references/ascend-profiling-formats.md](../../reference/knowledge/ascend-profiling-formats.md) — Profiling 数据格式
 
 ## 实测事故案例
 

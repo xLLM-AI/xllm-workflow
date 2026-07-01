@@ -93,5 +93,5 @@ profiling/<run_id>/
 ## 参考资料
 
 - [`references/pipeline-boundaries.md`](references/pipeline-boundaries.md)
-- [`../xllm-npu-profiler/references/source-map.md`](../xllm-npu-profiler/references/source-map.md)
+- [`../../reference/knowledge/profiler-source-map.md`](../../reference/knowledge/profiler-source-map.md)
 - [`../../reference/io_specs/profiling-artifact-schema.md`](../../reference/io_specs/profiling-artifact-schema.md)

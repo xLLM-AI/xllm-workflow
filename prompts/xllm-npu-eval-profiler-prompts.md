@@ -23,28 +23,24 @@
 ## 场景 2：evalscope 性能评测，必须带 warmup
 
 ```text
-请使用 xllm-npu-eval-runner 执行 evalscope 性能评测。
+请使用 xllm-npu-perf-runner 执行 evalscope 性能评测。
+若服务未启动，请先使用 xllm-npu-server-manager 启动服务。
 
 配置：
-- URL：<api_url>/v1/chat/completions
-- tokenizer：<tokenizer_path>
+- API URL：<api_url>
 - 模型名：<model_name>
-- dataset：<random | line_by_line | custom>
-- 输入/输出：<input_tokens>/<output_tokens>
-- parallel=<parallel>
-- number=<number>
-- warmup-num=<warmup_num>
-- temperature=<temperature>
-- top_p=<top_p>
-- top_k=<top_k>
-- ignore_eos=<true_or_false>
-- outputs-dir：<run_root>/perf/<run_id>
+- tokenizer：<tokenizer_path>
+- TP=<tp>（用于服务启动配置，若服务已运行则忽略）
+- parallel=<parallel_list，如 1,2,4>（并发数列表，逐个测试）
+- number=<number，每个并发场景的请求数，如 4>
+- artifact root：<run_root>
 
 要求：
-1. warmup-num 必须大于 0，除非明确是在测冷启动。
-2. 保存 evalscope 原始输出、metrics.json、report.md 和 manifest。
-3. 输出 TTFT、TPOT、TPS、吞吐、P50/P90/P99。
-4. 标记本次结果是否可用于正式性能结论。
+1. 确认 evalscope 已安装（evalscope + evalscope[perf]）。
+2. 更新 scripts/eval_perf.sh 中的 model、url、tokenizer-path，并按用户指定的 parallel 列表和 number 生成对应的 evalscope perf 命令块。
+3. warmup-num 必须大于 0，除非明确是在测冷启动。
+4. 结果输出到 $RUN_ROOT/perf/，保留 evalscope 原始目录，提取 benchmark_summary.json 同步到 metrics.json。
+5. 输出 TTFT、TPOT、TPS、吞吐、P50/P90/P99。
 ```
 
 ## 场景 3：CEval 指定分类精度评测
@@ -130,67 +126,103 @@
 
 ## 场景 7：xLLM 与 vLLM-Ascend 容器隔离 A/B 性能对比
 
-> 本场景提供结构化参数模板。完整的执行流程（含 full/incremental 模式切换、evalscope 容器调度、启动前清理、报告生成等操作步骤）以 `skills/xllm-npu-benchmark/references/benchmark-prompt-template.md` 为准。两者冲突时，以 benchmark-prompt-template 为准。
+> 完整执行流程（含 full/incremental 模式、容器调度、启动前清理、报告生成等）
+> 以 `skills/xllm-npu-benchmark/references/benchmark-prompt-template.md` 为准。
+> 本场景仅提供快速参数清单。
 
 ```text
-请使用 xllm-npu-benchmark 和 xllm-npu-eval-runner，在宿主机调度两个命名容器，
-对比 xLLM 与 vLLM-Ascend 的 <model_name> 性能。
+请使用 xllm-npu-benchmark，按 benchmark-prompt-template.md 执行 A/B 对比。
 
-=== 前置条件 ===
-- SSH 连接：<ssh_host>（使用 SSH key 认证，不要在 prompt 中写密码）
-- 宿主机工作目录：<work_dir>
-- 容器状态：<已启动 | 需要启动>
-- 若需启动，xLLM 启动脚本：<xllm_server_script>
-- 若需启动，vLLM-Ascend 启动脚本：<vllm_server_script>
-
-=== 容器配置 ===
-- xLLM 容器名：<xllm_container>
-- xLLM 镜像 tag/digest：<xllm_image>
-- xLLM 版本/commit：<xllm_version>
-- vLLM-Ascend 容器名：<vllm_container>
-- vLLM-Ascend 镜像 tag/digest：<vllm_image>
-- vLLM-Ascend 版本：<vllm_version>
-
-=== 服务配置 ===
-- xLLM 服务端口：<xllm_port>
-- vLLM-Ascend 服务端口：<vllm_port>
-- API 路径：/v1/chat/completions
-
-=== NPU 配置 ===
-- 物理 NPU 型号：<npu_model，如 Ascend 910B3>
-- xLLM 可见卡：<xllm_visible_devices，如 0,1>
-- vLLM-Ascend 可见卡：<vllm_visible_devices，如 2,3>
-- TP=<tp_size>
-
-=== 模型配置 ===
-- 模型权重：<model_path>
-- tokenizer：<tokenizer_path>
-- dtype：<dtype，如 bfloat16>
-
-=== evalscope 配置 ===
-- evalscope 运行位置：<宿主机 | 统一 client 容器>
-- evalscope 版本：<evalscope_version>
-- dataset=random
-- input_tokens=<input_tokens，如 2048>
-- output_tokens=<output_tokens，如 2048>
-- parallel=<parallel>
-- number=<number，smoke 用 4，正式建议 >= 100>
-- warmup-num=<warmup_num，>= 2>
-- temperature=0.0
-- top_p=<top_p>
-- top_k=<top_k>
-- ignore_eos=true
-
-=== 输出配置 ===
-- artifact root：<run_root，建议格式：runs/<日期>_<模型>_<对比类型>>
-
-=== 要求 ===
-1. 不要在 xLLM 容器里安装或启动 vLLM-Ascend；宿主机负责 docker exec 调度。
-2. 正式 benchmark 使用命名长驻容器，不默认使用 docker run --rm。
-3. 两边使用同一模型权重、同一 tokenizer、同一物理 NPU 型号/卡数/可见卡顺序。
-4. 每个框架 run 前后保存宿主机 npu-smi、进程表、CPU/memory/load 快照。
-5. 保存容器名、镜像 tag/digest、框架 commit 或 package 版本、启动命令、端口和日志。
-6. evalscope 优先在宿主机或统一 client 容器运行；若在服务容器内运行，记录 evalscope 版本。
-7. 输出 TTFT、TPOT、TPS、Output throughput、P50/P90/P99，并说明结果是否可作为正式结论。
-8. 若任一框架服务未就绪或环境异常，先报告问题，不要跳过检查直接跑 benchmark。
+需填写参数：
+- 运行模式：<full | incremental>
+- SSH：<ssh_host>
+- 容器：<xllm_container> / <vllm_container>
+- 端口：<xllm_port> / <vllm_port>
+- 启动脚本：<xllm_start_script> / <vllm_start_script>
+- evalscope 容器：<evalscope_container>
+- 模型权重：<model_path>，tokenizer：<tokenizer_path>
+- TP=<tp>
+- input_tokens=<input_tokens>，output_tokens=<output_tokens>
+- parallel=<parallel_list>
+- artifact root：<artifact_root>
+- vLLM 历史结果路径（仅 incremental）：<vllm_history_path>
 ```
+
+## 场景 8：多模型批量性能评测（不同尺寸、不同 TP）
+
+> 对多个模型循环执行场景 2，每个模型独立拉起服务、测试、停止。
+> 使用 `xllm-npu-batch-perf` skill，支持简写约定，自动推导路径和设备。
+
+### 示例 A：极简写法（推荐）
+
+```text
+请使用 xllm-npu-batch-perf 批量评测以下模型：
+
+模型：
+1. Qwen3.5-27B：2卡
+2. Qwen3.5-35B-A3B：2卡
+3. Qwen3.6-27B：2卡
+4. Qwen3.5-4B：单卡，不开MTP
+
+环境：
+- SSH：103
+- xllm容器：cann9-xllm-wh
+- evalscope容器：cann8.5-xllm-wh
+- xllm binary：/export/home/weinan5/wanghao/xllm-cann9/build/xllm/core/server/xllm
+- 权重目录：/export/home/models/
+- MTP导出工具：/export/home/weinan5/wanghao/xllm-cann9/tools/export_mtp.py
+- 参考脚本：/export/home/weinan5/wanghao/vllm_vs010.sh
+- 端口：18039
+
+测试：input=2048, output=2048, parallel=1,2,4
+```
+
+### 示例 B：带自定义参数
+
+```text
+请使用 xllm-npu-batch-perf 批量评测：
+
+模型：
+1. Qwen3.5-27B：2卡，parallel=1,2,4,8
+2. DeepSeek-V3：8卡，input=4096, output=512
+
+环境：
+- SSH：103
+- xllm容器：cann9-xllm-wh
+- xllm binary：/export/home/weinan5/wanghao/xllm-cann9/build/xllm/core/server/xllm
+- 权重目录：/export/home/models/
+- MTP投机步数：5
+- 端口：18039
+
+公共：warmup=2, number=4, max_memory_utilization=0.8
+```
+
+### 示例 C：同一模型多轮复测
+
+```text
+请使用 xllm-npu-batch-perf，对 Qwen3.5-27B 执行 3 轮复测验证稳定性。
+
+配置：2卡，MTP，input=2048, output=2048, parallel=1,2,4
+
+环境：
+- SSH：103
+- xllm容器：cann9-xllm-wh
+- xllm binary：/export/home/weinan5/wanghao/xllm-cann9/build/xllm/core/server/xllm
+- 权重目录：/export/home/models/
+- 端口：18039
+
+要求：每轮重启服务，计算均值和标准差，偏离>10%标记异常。
+```
+
+### 简写约定说明
+
+Agent 会自动按以下规则补全：
+
+| 用户写法 | 自动推导 |
+|---|---|
+| `Qwen3.5-27B：2卡` | `model_path=/export/home/models/Qwen3.5-27B`<br>`devices=0,1`<br>`MTP=开启`（默认） |
+| `Qwen3.5-4B：单卡，不开MTP` | `model_path=/export/home/models/Qwen3.5-4B`<br>`devices=0`<br>`MTP=关闭` |
+| 省略 `draft_model_path` | 自动设为 `<model_path>-mtp` |
+| 省略 `tokenizer_path` | 自动设为 `<model_path>` |
+| 指定 `参考脚本` | 自动提取启动参数作为默认值 |
+| 指定 `MTP导出工具` | draft 目录不存在时自动调用生成 |

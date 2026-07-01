@@ -77,8 +77,13 @@ when their adapters and runbooks are added.
 | Task | Start With |
 |---|---|
 | End-to-end optimization goal | `skills/xllm-npu-sota-loop/SKILL.md` |
-| Build, compile, build gate, or PR rebase build validation | `skills/xllm-npu-eval-runner/SKILL.md` |
-| Run evalscope evaluation or collect evalscope artifacts | `skills/xllm-npu-eval-runner/SKILL.md` |
+| Build, compile, build gate, NPU gate, or multi-candidate build reuse | `skills/xllm-npu-build-gate/SKILL.md` |
+| End-to-end eval (service + perf + accuracy + report) | `skills/xllm-npu-eval-runner/SKILL.md` |
+| Batch perf eval for multiple models with different TP | `skills/xllm-npu-batch-perf/SKILL.md` |
+| Launch, stop, or health-check xLLM service | `skills/xllm-npu-server-manager/SKILL.md` |
+| Run evalscope performance test only | `skills/xllm-npu-perf-runner/SKILL.md` |
+| Run evalscope accuracy test only | `skills/xllm-npu-accuracy-runner/SKILL.md` |
+| Generate report from existing artifacts | `skills/xllm-npu-report-writer/SKILL.md` |
 | Fair benchmark comparison | `skills/xllm-npu-benchmark/SKILL.md` |
 | msprof / MindStudio profiling analysis | `skills/xllm-npu-profiler/SKILL.md` |
 | Prefill/decode boundary, layer timing, or rank skew | `skills/xllm-npu-pipeline-analysis/SKILL.md` |
