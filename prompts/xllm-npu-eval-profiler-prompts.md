@@ -147,3 +147,82 @@
 - artifact root：<artifact_root>
 - vLLM 历史结果路径（仅 incremental）：<vllm_history_path>
 ```
+
+## 场景 8：多模型批量性能评测（不同尺寸、不同 TP）
+
+> 对多个模型循环执行场景 2，每个模型独立拉起服务、测试、停止。
+> 使用 `xllm-npu-batch-perf` skill，支持简写约定，自动推导路径和设备。
+
+### 示例 A：极简写法（推荐）
+
+```text
+请使用 xllm-npu-batch-perf 批量评测以下模型：
+
+模型：
+1. Qwen3.5-27B：2卡
+2. Qwen3.5-35B-A3B：2卡
+3. Qwen3.6-27B：2卡
+4. Qwen3.5-4B：单卡，不开MTP
+
+环境：
+- SSH：103
+- xllm容器：cann9-xllm-wh
+- evalscope容器：cann8.5-xllm-wh
+- xllm binary：/export/home/weinan5/wanghao/xllm-cann9/build/xllm/core/server/xllm
+- 权重目录：/export/home/models/
+- MTP导出工具：/export/home/weinan5/wanghao/xllm-cann9/tools/export_mtp.py
+- 参考脚本：/export/home/weinan5/wanghao/vllm_vs010.sh
+- 端口：18039
+
+测试：input=2048, output=2048, parallel=1,2,4
+```
+
+### 示例 B：带自定义参数
+
+```text
+请使用 xllm-npu-batch-perf 批量评测：
+
+模型：
+1. Qwen3.5-27B：2卡，parallel=1,2,4,8
+2. DeepSeek-V3：8卡，input=4096, output=512
+
+环境：
+- SSH：103
+- xllm容器：cann9-xllm-wh
+- xllm binary：/export/home/weinan5/wanghao/xllm-cann9/build/xllm/core/server/xllm
+- 权重目录：/export/home/models/
+- MTP投机步数：5
+- 端口：18039
+
+公共：warmup=2, number=4, max_memory_utilization=0.8
+```
+
+### 示例 C：同一模型多轮复测
+
+```text
+请使用 xllm-npu-batch-perf，对 Qwen3.5-27B 执行 3 轮复测验证稳定性。
+
+配置：2卡，MTP，input=2048, output=2048, parallel=1,2,4
+
+环境：
+- SSH：103
+- xllm容器：cann9-xllm-wh
+- xllm binary：/export/home/weinan5/wanghao/xllm-cann9/build/xllm/core/server/xllm
+- 权重目录：/export/home/models/
+- 端口：18039
+
+要求：每轮重启服务，计算均值和标准差，偏离>10%标记异常。
+```
+
+### 简写约定说明
+
+Agent 会自动按以下规则补全：
+
+| 用户写法 | 自动推导 |
+|---|---|
+| `Qwen3.5-27B：2卡` | `model_path=/export/home/models/Qwen3.5-27B`<br>`devices=0,1`<br>`MTP=开启`（默认） |
+| `Qwen3.5-4B：单卡，不开MTP` | `model_path=/export/home/models/Qwen3.5-4B`<br>`devices=0`<br>`MTP=关闭` |
+| 省略 `draft_model_path` | 自动设为 `<model_path>-mtp` |
+| 省略 `tokenizer_path` | 自动设为 `<model_path>` |
+| 指定 `参考脚本` | 自动提取启动参数作为默认值 |
+| 指定 `MTP导出工具` | draft 目录不存在时自动调用生成 |

@@ -3,38 +3,36 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
 cd "$PROJECT_ROOT"
 
-SMOKE_MODE="${SMOKE_MODE:-true}"
+MODEL="${MODEL:-Qwen35-27B}"
+API_URL="${API_URL:-http://127.0.0.1:17112/v1}"
 TOKENIZER_PATH="${TOKENIZER_PATH:-/models/Qwen35-27B}"
+PARALLEL_LIST="${PARALLEL_LIST:-1}"
+NUMBER="${NUMBER:-4}"
+WARMUP_NUM="${WARMUP_NUM:-2}"
+INPUT_TOKENS="${INPUT_TOKENS:-20000}"
+OUTPUT_TOKENS="${OUTPUT_TOKENS:-1024}"
+OUTPUT_DIR="${OUTPUT_DIR:-outputs}"
+EXTRA_ARGS="${EXTRA_ARGS:-{\"ignore_eos\": true}}"
 
-evalscope perf \
-  --parallel 1 \
-  --number 4 \
-  --model Qwen35-27B \
-  --url http://127.0.0.1:17112/v1/chat/completions \
-  --api openai \
-  --warmup-num 2 \
-  --dataset random \
-  --max-tokens 1024 \
-  --min-tokens 1024 \
-  --prefix-length 0 \
-  --min-prompt-length 20000 \
-  --max-prompt-length 20000 \
-  --tokenizer-path "$TOKENIZER_PATH" \
-  --extra-args '{"ignore_eos": true}'
+IFS=',' read -ra PARALLELS <<< "$PARALLEL_LIST"
 
-if [ "$SMOKE_MODE" != "true" ]; then
+for PARALLEL in "${PARALLELS[@]}"; do
+  ACTUAL_NUMBER=$((NUMBER * PARALLEL))
+  echo "=== Running evalscope perf: parallel=$PARALLEL, number=$ACTUAL_NUMBER ==="
   evalscope perf \
-    --parallel 5 \
-    --number 20 \
-    --model Qwen35-27B \
-    --url http://127.0.0.1:17112/v1/chat/completions \
+    --parallel "$PARALLEL" \
+    --number "$ACTUAL_NUMBER" \
+    --model "$MODEL" \
+    --url "${API_URL}/chat/completions" \
     --api openai \
+    --warmup-num "$WARMUP_NUM" \
     --dataset random \
-    --max-tokens 1024 \
-    --min-tokens 1024 \
+    --max-tokens "$OUTPUT_TOKENS" \
+    --min-tokens "$OUTPUT_TOKENS" \
     --prefix-length 0 \
-    --min-prompt-length 20000 \
-    --max-prompt-length 20000 \
+    --min-prompt-length "$INPUT_TOKENS" \
+    --max-prompt-length "$INPUT_TOKENS" \
     --tokenizer-path "$TOKENIZER_PATH" \
-    --extra-args '{"ignore_eos": true}'
-fi
+    --output-dir "$OUTPUT_DIR" \
+    --extra-args "$EXTRA_ARGS"
+done
