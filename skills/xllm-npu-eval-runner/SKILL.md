@@ -138,8 +138,14 @@ uptime > "$RUN_ROOT/env/load.before.txt"
 
 ### 构建前置验证
 
-如果测评前需要编译验证（build gate、NPU 门禁、多候选构建复用），
-参考 [`xllm-npu-build-gate`](../xllm-npu-build-gate/SKILL.md) skill。
+启动服务前必须消费
+[`xllm-npu-build-gate`](../xllm-npu-build-gate/SKILL.md) 生成的
+`$RUN_ROOT/build/verdict.json` 和 `binary-provenance.json`：
+
+1. 只有 `status=PASS`、`binary_ready=true` 才能继续。
+2. `XLLM_BIN` 必须等于 provenance 中记录的 binary path，并把 SHA256 写入 manifest。
+3. `BLOCKED` 时停止测评并补齐环境；`FAILED` 时连同 `build.log` 交给 incident-triage。
+4. 不得在 eval-runner 内手工修改 submodule、CMake cache、OPP 或构建环境来绕过 gate。
 
 ## 宿主机调度容器模式
 
