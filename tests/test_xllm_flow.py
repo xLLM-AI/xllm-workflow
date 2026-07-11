@@ -234,6 +234,7 @@ def test_run_evidence_is_projected_from_manifest_identity(tmp_path):
     assert evidence["run_id"] == manifest["spec"]["identity"]["task_id"]
     assert evidence["identity"]["framework"] == manifest["spec"]["code"]["framework"]
     assert evidence["identity"]["commit"] == manifest["code_identity"]["commit"]
+    assert set(evidence["artifacts"]) == {"environment", "performance"}
 
 
 def test_gate_all_aggregates_build_and_service_lifecycle(tmp_path):

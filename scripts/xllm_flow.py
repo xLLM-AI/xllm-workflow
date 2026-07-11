@@ -933,12 +933,15 @@ def build_run_evidence(run_root: Path, evidence_type: str | None = None, level: 
             "analysis": "profiling/analysis.json",
         },
     }
+    active_artifact_groups = {"environment", resolved_type}
     artifacts = {
-        key: {**value, **evidence_artifacts.get(key, {})}
-        for key, value in defaults.items()
+        key: {**defaults[key], **evidence_artifacts.get(key, {})}
+        for key in active_artifact_groups
     }
     artifacts.update({
-        key: value for key, value in evidence_artifacts.items() if key not in defaults
+        key: value
+        for key, value in evidence_artifacts.items()
+        if key not in active_artifact_groups
     })
     workload = spec.get("workload", {})
     document: dict[str, Any] = {
