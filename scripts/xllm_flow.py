@@ -188,6 +188,104 @@ def save_checkpoint(run_root: Path, state: dict[str, Any]) -> None:
     (run_root / "CHECKPOINT.md").write_text(render_checkpoint(state), encoding="utf-8")
 
 
+def validate_big_rock_gate(run_root: Path) -> list[str]:
+    gate = read_json(run_root / "analysis" / "big-rock-gate.json", {})
+    errors = []
+    status = gate.get("status")
+    if status not in {"PASS", "DISCOVERY", "BLOCKED", "EXEMPT"}:
+        return ["status must be PASS, DISCOVERY, BLOCKED, or EXEMPT"]
+    if status == "DISCOVERY":
+        rounds = gate.get("discovery", {}).get("rounds")
+        if not isinstance(rounds, int) or not 1 <= rounds <= 2:
+            errors.append("discovery.rounds must be 1 or 2")
+        if not gate.get("discovery", {}).get("next_measurement"):
+            errors.append("discovery.next_measurement is required")
+        return errors
+    if status == "BLOCKED":
+        return [] if gate.get("blocked_reason") else ["blocked_reason is required"]
+
+    budget = gate.get("budget", {})
+    wall = budget.get("wall_time")
+    buckets = budget.get("buckets", {})
+    exclusive = sum(buckets.values()) if isinstance(buckets, dict) and all(isinstance(value, (int, float)) and value >= 0 for value in buckets.values()) else None
+    unclassified = budget.get("unclassified")
+    required_buckets = {"compute", "communication", "host", "graph_sync", "copy_memory", "sampling_postprocess"}
+    if not isinstance(buckets, dict) or not required_buckets.issubset(buckets):
+        errors.append("budget.buckets must include compute, communication, host, graph_sync, copy_memory, and sampling_postprocess")
+    if not all(isinstance(value, (int, float)) and value >= 0 for value in [wall, exclusive, unclassified]):
+        errors.append("budget wall_time, bucket values, and unclassified must be non-negative numbers")
+    elif wall <= 0 or abs((exclusive + unclassified) - wall) > max(wall * 0.05, 0.001):
+        errors.append("exclusive_attributed + unclassified must equal wall_time within 5%")
+    if not budget.get("phase") or not budget.get("unit") or not budget.get("evidence"):
+        errors.append("budget phase, unit, and evidence are required")
+
+    remaining_gap = gate.get("remaining_target_gap")
+    noise_floor = gate.get("noise_floor")
+    if not isinstance(remaining_gap, (int, float)) or remaining_gap <= 0:
+        errors.append("remaining_target_gap must be positive")
+    if not isinstance(noise_floor, (int, float)) or noise_floor < 0:
+        errors.append("noise_floor must be non-negative")
+    candidates = gate.get("candidates", [])
+    selected = [item for item in candidates if item.get("selected") is True]
+    if len(selected) != 1:
+        errors.append("exactly one candidate must be selected")
+    actionable = []
+    for item in candidates:
+        required = ["level", "hypothesis", "affected_budget", "removable_fraction", "expected_gain_low", "expected_gain_high", "remaining_gap_share", "implementation_cost", "validation_risk", "priority_score", "evidence"]
+        if any(item.get(key) in {None, ""} for key in required):
+            errors.append(f"candidate is missing ranking fields: {item.get('hypothesis', '<unnamed>')}")
+            continue
+        low, high = item["expected_gain_low"], item["expected_gain_high"]
+        cost, risk = item["implementation_cost"], item["validation_risk"]
+        fraction = item["removable_fraction"]
+        if item["level"] not in {"L0", "L1", "L2", "L3"}:
+            errors.append(f"invalid candidate level: {item['level']}")
+        if not all(isinstance(value, (int, float)) for value in [low, high, cost, risk, fraction, item["priority_score"]]):
+            errors.append(f"candidate numeric fields are invalid: {item['hypothesis']}")
+            continue
+        if low < 0 or high < low:
+            errors.append(f"candidate gain range is invalid: {item['hypothesis']}")
+        if not 0 <= fraction <= 1 or not 1 <= cost <= 5 or not 1 <= risk <= 5:
+            errors.append(f"candidate fraction/cost/risk is invalid: {item['hypothesis']}")
+        bucket_name = item["affected_budget"]
+        if bucket_name not in buckets:
+            errors.append(f"candidate affected_budget is unknown: {item['hypothesis']}")
+        elif high > buckets[bucket_name] * fraction * 1.05 + 1e-9:
+            errors.append(f"candidate gain exceeds affected budget upper bound: {item['hypothesis']}")
+        if isinstance(remaining_gap, (int, float)) and remaining_gap > 0 and abs(item["remaining_gap_share"] - high / remaining_gap) > 0.02:
+            errors.append(f"candidate remaining_gap_share is inconsistent: {item['hypothesis']}")
+        expected_priority = ((low + high) / 2) / (cost * risk)
+        if abs(item["priority_score"] - expected_priority) > max(expected_priority * 0.05, 0.001):
+            errors.append(f"candidate priority_score is inconsistent: {item['hypothesis']}")
+        if item.get("actionable", True):
+            actionable.append(item)
+        elif not item.get("blocked_reason"):
+            errors.append(f"non-actionable candidate needs blocked_reason: {item['hypothesis']}")
+    if selected:
+        item = selected[0]
+        if item not in actionable:
+            errors.append("selected candidate must be actionable")
+        elif actionable and item["priority_score"] < max(candidate["priority_score"] for candidate in actionable) - 1e-9:
+            errors.append("selected candidate must have the highest actionable priority_score")
+        if item.get("expected_gain_high", 0) <= (noise_floor if isinstance(noise_floor, (int, float)) else 0):
+            errors.append("selected candidate expected gain must exceed noise_floor")
+        if not item.get("ab_plan") or not item.get("rollback_plan"):
+            errors.append("selected candidate requires ab_plan and rollback_plan")
+        if status == "PASS" and item.get("remaining_gap_share", 0) < 0.2:
+            errors.append("PASS candidate must close at least 20% of remaining gap")
+        if status == "EXEMPT" and not gate.get("exemption_reason"):
+            errors.append("EXEMPT requires exemption_reason")
+        if item.get("level") == "L3" and not gate.get("l0_l2_disposition"):
+            errors.append("L3 selection requires l0_l2_disposition")
+        if item.get("affected_budget") in buckets:
+            selected_budget = buckets[item["affected_budget"]]
+            dispositions = gate.get("bucket_dispositions", {})
+            for name, value in buckets.items():
+                if value > selected_budget and not dispositions.get(name):
+                    errors.append(f"larger budget bucket requires disposition: {name}")
+    return errors
+
+
 def update_registry_binding(registry_path: Path, spec: dict[str, Any], run_root: Path) -> None:
     registry = read_json(registry_path, {"version": 1, "tasks": []})
     task_id = spec.get("identity", {}).get("task_id")
@@ -210,7 +308,7 @@ def run_create(spec_path: Path, registry_path: Path | None = None) -> Path:
         raise ValueError("identity.run_root is required")
     run_root = resolve_spec_path(spec_path, run_root_value)
     assert run_root is not None
-    for item in ["attempts", "reports", "env"]:
+    for item in ["attempts", "reports", "env", "analysis"]:
         (run_root / item).mkdir(parents=True, exist_ok=True)
     manifest = read_json(run_root / "manifest.json", {})
     fingerprint = stable_fingerprint(spec)
@@ -220,6 +318,40 @@ def run_create(spec_path: Path, registry_path: Path | None = None) -> Path:
         manifest = {"version": 1, "created_at_utc": utc_now(), "status": "pending", "fingerprint": fingerprint, "spec": spec}
         write_json(run_root / "manifest.json", manifest)
     (run_root / "attempts.jsonl").touch(exist_ok=True)
+    budget = run_root / "analysis" / "bottleneck-budget.md"
+    if not budget.exists():
+        budget.write_text(
+            "# Bottleneck Budget\n\n"
+            "- baseline: \n- current_best: \n- target: \n- remaining_gap: \n- noise_floor: \n\n"
+            "| category | measured cost | share | confidence | evidence |\n"
+            "|---|---:|---:|---|---|\n"
+            "| model compute / main operators | | | | |\n"
+            "| communication | | | | |\n"
+            "| host scheduling and dispatch | | | | |\n"
+            "| graph gaps and synchronization | | | | |\n"
+            "| copies and memory movement | | | | |\n"
+            "| sampling and postprocess | | | | |\n"
+            "| unclassified | | | | |\n",
+            encoding="utf-8",
+        )
+    ranking = run_root / "analysis" / "candidate-ranking.md"
+    if not ranking.exists():
+        ranking.write_text(
+            "# Candidate Ranking\n\n"
+            "| rank | level | hypothesis | gain low | gain high | gap share | cost 1-5 | risk 1-5 | priority | evidence | blocked reason | selected |\n"
+            "|---:|---|---|---:|---:|---:|---:|---:|---:|---|---|---|\n\n"
+            "L3 remains locked until L0-L2 candidates are quantified or rejected with evidence.\n",
+            encoding="utf-8",
+        )
+    gate = run_root / "analysis" / "big-rock-gate.json"
+    if not gate.exists():
+        write_json(gate, {
+            "version": 1, "status": "PENDING",
+            "budget": {"phase": "", "unit": "ms", "wall_time": 0, "buckets": {"compute": 0, "communication": 0, "host": 0, "graph_sync": 0, "copy_memory": 0, "sampling_postprocess": 0}, "unclassified": 0, "overlap_opportunity": 0, "evidence": ""},
+            "remaining_target_gap": 0, "noise_floor": 0,
+            "candidates": [], "bucket_dispositions": {}, "l0_l2_disposition": "", "exemption_reason": "", "blocked_reason": "",
+            "discovery": {"rounds": 0, "next_measurement": ""},
+        })
     if not (run_root / "checkpoint.json").exists():
         save_checkpoint(run_root, {"phase": "created", "last_success": "run-create", "next_command": "xllm-flow preflight"})
     if registry_path:
@@ -361,9 +493,13 @@ def build_parser() -> argparse.ArgumentParser:
     archive.add_argument("--task-id", required=True)
     checkpoint = commands.add_parser("checkpoint")
     checkpoint.add_argument("--run-root", type=Path, required=True)
-    checkpoint.add_argument("--phase", required=True)
+    checkpoint.add_argument("--phase", choices=["created", "baseline", "profiling", "analysis", "discovery", "planning", "implementation", "validation", "finalized", "blocked"], required=True)
     checkpoint.add_argument("--last-success", default="")
     checkpoint.add_argument("--next-command", default="")
+    gate = commands.add_parser("gate")
+    gate_sub = gate.add_subparsers(dest="action", required=True)
+    gate_check = gate_sub.add_parser("check")
+    gate_check.add_argument("--run-root", type=Path, required=True)
     return parser
 
 
@@ -386,7 +522,18 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "fingerprint":
             print(stable_fingerprint(load_spec(args.spec)))
         elif args.command == "checkpoint":
+            if args.phase == "implementation":
+                gate_errors = validate_big_rock_gate(args.run_root)
+                gate_status = read_json(args.run_root / "analysis" / "big-rock-gate.json", {}).get("status")
+                if gate_errors or gate_status not in {"PASS", "EXEMPT"}:
+                    raise ValueError("Big-Rock Gate blocks implementation: " + "; ".join(gate_errors or [f"status is {gate_status}"]))
             save_checkpoint(args.run_root, {"phase": args.phase, "last_success": args.last_success, "next_command": args.next_command})
+        elif args.command == "gate" and args.action == "check":
+            errors = validate_big_rock_gate(args.run_root)
+            gate_status = read_json(args.run_root / "analysis" / "big-rock-gate.json", {}).get("status")
+            valid = not errors
+            print(json.dumps({"valid": valid, "gate_status": gate_status, "implementation_allowed": valid and gate_status in {"PASS", "EXEMPT"}, "errors": errors}, ensure_ascii=False, indent=2))
+            return 2 if errors else 0 if gate_status in {"PASS", "EXEMPT"} else 1
         elif args.command == "run" and args.action == "create":
             print(run_create(args.spec, registry_path))
         elif args.command == "run" and args.action == "finalize":

@@ -114,6 +114,9 @@ run 创建、checkpoint、finalize 和 archive。历史 run 不要求移动；�
 证据驱动闭环：每次优化从可量化目标出发，采集可比数据，做一条可 review 的改动，
 并留下可复现的 artifact。
 
+端到端 goal 必须先建立粗粒度 loss budget，并按架构算法、pipeline、operator、
+kernel 从大到小筛选；更大层级未量化或未被证据否决前，不进入局部微优化。
+
 ## 4 贡献指南
 
 1. **确定性能力写成脚本** — 任何可自动化的确定性逻辑（编译、评测、profiling 收集）应固化为 `scripts/` 下的脚本，禁止 LLM 修改脚本逻辑。

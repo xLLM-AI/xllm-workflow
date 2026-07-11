@@ -21,6 +21,7 @@ python scripts/xllm_flow.py preflight --spec experiment.yaml --output runs/examp
 python scripts/xllm_flow.py run create --spec experiment.yaml
 python scripts/xllm_flow.py checkpoint --run-root runs/example-campaign --phase benchmark
 python scripts/xllm_flow.py run finalize --run-root runs/example-campaign --status pass --retention-reviewed
+python scripts/xllm_flow.py gate check --run-root runs/example-campaign
 ```
 
 工作区任务注册表可从现有 worktree 幂等生成：

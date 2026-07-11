@@ -81,6 +81,9 @@ def test_preflight_and_run_lifecycle(tmp_path):
     flow.run_create(spec)
     assert (run_root / "manifest.json").is_file()
     assert (run_root / "CHECKPOINT.md").is_file()
+    assert (run_root / "analysis" / "bottleneck-budget.md").is_file()
+    assert (run_root / "analysis" / "candidate-ranking.md").is_file()
+    assert (run_root / "analysis" / "big-rock-gate.json").is_file()
     flow.save_checkpoint(run_root, {"phase": "benchmark", "last_success": "baseline", "next_command": "run candidate"})
     assert json.loads((run_root / "checkpoint.json").read_text())["phase"] == "benchmark"
     flow.run_finalize(run_root, "pass", retention_reviewed=True)
@@ -168,3 +171,49 @@ def test_workspace_check_writes_unified_report(tmp_path):
     assert result["runs"] == {"manifested": 1, "total": 1, "unmanifested": 0}
     assert (output / "workspace-preflight.json").is_file()
     assert (output / "workspace-preflight.md").is_file()
+
+
+def test_big_rock_gate_requires_budget_and_ranked_candidate(tmp_path):
+    run_root = tmp_path / "run"
+    (run_root / "analysis").mkdir(parents=True)
+    flow.write_json(run_root / "analysis" / "big-rock-gate.json", {
+        "status": "PASS",
+        "budget": {"phase": "decode", "unit": "ms", "wall_time": 10, "buckets": {"compute": 5, "communication": 2, "host": 1, "graph_sync": 1, "copy_memory": 0, "sampling_postprocess": 0}, "unclassified": 1, "evidence": "trace.json"},
+        "remaining_target_gap": 4, "noise_floor": 0.1,
+        "bucket_dispositions": {"compute": "outside current software scope"},
+        "candidates": [{
+            "level": "L1", "hypothesis": "overlap communication", "affected_budget": "communication", "removable_fraction": 0.5,
+            "expected_gain_low": 0.6, "expected_gain_high": 1.0, "remaining_gap_share": 0.25, "implementation_cost": 2,
+            "validation_risk": 2, "priority_score": 0.2, "evidence": "timeline", "selected": True,
+            "actionable": True, "ab_plan": "toggle overlap", "rollback_plan": "disable toggle",
+        }],
+    })
+    assert flow.validate_big_rock_gate(run_root) == []
+
+
+def test_big_rock_gate_rejects_small_pass_and_unexplained_l3(tmp_path):
+    run_root = tmp_path / "run"
+    (run_root / "analysis").mkdir(parents=True)
+    flow.write_json(run_root / "analysis" / "big-rock-gate.json", {
+        "status": "PASS",
+        "budget": {"phase": "decode", "unit": "ms", "wall_time": 10, "buckets": {"compute": 5, "communication": 2, "host": 1, "graph_sync": 1, "copy_memory": 1, "sampling_postprocess": 0}, "unclassified": 0, "evidence": "trace.json"},
+        "remaining_target_gap": 4, "noise_floor": 0.005,
+        "candidates": [{
+            "level": "L3", "hypothesis": "one memcpy", "affected_budget": "copy_memory", "removable_fraction": 0.02,
+            "expected_gain_low": 0.01, "expected_gain_high": 0.02, "remaining_gap_share": 0.005, "implementation_cost": 1,
+            "validation_risk": 1, "priority_score": 0.015, "evidence": "timeline", "selected": True,
+            "actionable": True, "ab_plan": "toggle copy", "rollback_plan": "disable toggle",
+        }],
+    })
+    errors = flow.validate_big_rock_gate(run_root)
+    assert any("20%" in item for item in errors)
+    assert any("l0_l2_disposition" in item for item in errors)
+
+
+def test_big_rock_discovery_is_bounded(tmp_path):
+    run_root = tmp_path / "run"
+    (run_root / "analysis").mkdir(parents=True)
+    flow.write_json(run_root / "analysis" / "big-rock-gate.json", {
+        "status": "DISCOVERY", "discovery": {"rounds": 3, "next_measurement": "profile stages"}
+    })
+    assert "discovery.rounds must be 1 or 2" in flow.validate_big_rock_gate(run_root)

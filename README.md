@@ -122,6 +122,10 @@ An evidence-driven loop: each optimization starts from a measurable target,
 collects comparable data, makes one reviewable change, and leaves artifacts
 for reproduction.
 
+End-to-end goals first build a coarse loss budget and rank architecture,
+pipeline, operator, and kernel candidates in that order. Micro-optimization is
+locked until larger scopes are quantified or rejected with evidence.
+
 ## 4 Contribution Guidelines
 
 1. **Deterministic capabilities go into scripts** — Any automatable deterministic logic (compile, evaluate, profiling collection) should be locked into `scripts/`; LLM must not modify script logic.

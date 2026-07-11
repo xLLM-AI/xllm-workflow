@@ -40,6 +40,9 @@ when their adapters and runbooks are added.
    - Profiling captures explain bottlenecks; they are not formal before/after
      performance results.
    - Do not claim a gain without raw artifacts, metrics, and the exact workload.
+   - For end-to-end goals, rank L0 architecture, L1 pipeline, and L2 operator
+     candidates before entering L3 detail. Select by expected end-to-end gain,
+     not by ease of implementation.
 
 4. **Keep Changes Surgical**
    - Touch only files needed for the request.
