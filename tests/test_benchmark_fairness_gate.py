@@ -16,6 +16,8 @@ def write_json(path, value):
 
 def snapshot(*, hbm=0, aicore=0, processes=None, load1=1.0, swap=0):
     return {
+        "backend": "ascend-npu",
+        "parser_version": 2,
         "collection_errors": [],
         "raw_dir": "env/raw/snapshot",
         "devices": [
@@ -39,13 +41,16 @@ def snapshot(*, hbm=0, aicore=0, processes=None, load1=1.0, swap=0):
 def candidate(root, name):
     run_root = root / name
     write_json(run_root / "evidence-verdict.json", {"status": "PASS", "claim_scope": "formal", "run_root": str(run_root.resolve())})
+    write_json(run_root / "manifest.json", {"fingerprint": "campaign-a"})
     (run_root / "env/raw/snapshot").mkdir(parents=True)
     return {
         "name": name,
         "run_root": name,
         "evidence_verdict": "evidence-verdict.json",
+        "campaign_fingerprint": "campaign-a",
         "identity": {
             "hardware_fingerprint": "hardware-a",
+            "device_backend": "ascend-npu",
             "physical_device_ids": [2],
             "visible_device_order": [2],
             "model_fingerprint": "model-a",
@@ -218,3 +223,25 @@ def test_candidate_names_must_be_unique(tmp_path):
 
     assert result.returncode == 2
     assert "candidate_names_must_be_unique_and_nonempty" in verdict(tmp_path)["blockers"]
+
+
+def test_snapshot_backend_must_match_declared_adapter(tmp_path):
+    document = comparison(tmp_path)
+    document["candidates"][1]["environment"]["after"]["backend"] = "nvidia-gpu"
+    write_json(tmp_path / "fairness.json", document)
+
+    result = invoke(tmp_path)
+
+    assert result.returncode == 2
+    assert "after:after:backend_mismatch" in verdict(tmp_path)["blockers"]
+
+
+def test_candidate_campaign_must_match_own_manifest(tmp_path):
+    document = comparison(tmp_path)
+    document["candidates"][1]["campaign_fingerprint"] = "drifted"
+    write_json(tmp_path / "fairness.json", document)
+
+    result = invoke(tmp_path)
+
+    assert result.returncode == 2
+    assert "after:campaign_fingerprint_mismatch" in verdict(tmp_path)["blockers"]

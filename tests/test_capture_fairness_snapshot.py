@@ -93,7 +93,72 @@ def test_replay_capture_writes_normalized_snapshot(tmp_path):
     assert snapshot["devices"][0]["hbm_usage_pct"] == 4
     assert snapshot["host"]["swap_used_bytes"] == 25 * 1024
     assert snapshot["collection_errors"] == []
+    assert snapshot["backend"] == "ascend-npu"
+    assert snapshot["parser_version"] == 2
     assert (raw / "mapping.txt").is_file()
+
+
+def test_ascend_parser_accepts_key_value_mapping_and_field_aliases():
+    mapping = capture.parse_mapping(
+        "NPU ID: 1\nChip ID: 3\nChip Physical ID: 7\n"
+    )
+    usage = capture.parse_keyed_by_chip(
+        "HBM Usage Rate (%): 12\nAI Core Usage Rate(%): 9\nChip ID: 3\n",
+        {
+            "HBM Usage Rate (%)": "hbm_usage_pct",
+            "AI Core Usage Rate(%)": "aicore_usage_pct",
+        },
+    )
+
+    assert mapping == {7: (1, 3)}
+    assert usage == {3: {"hbm_usage_pct": 12, "aicore_usage_pct": 9}}
+
+
+def test_nvidia_replay_uses_same_normalized_snapshot_contract(tmp_path):
+    replay = tmp_path / "replay"
+    write(replay / "gpu-query.csv", "0, GPU-abc, 2048, 8192, 37\n1, GPU-def, 0, 8192, 0\n")
+    write(replay / "process-query.csv", "GPU-abc, 999999, worker, 512\n")
+    write(replay / "backend-version.txt", "600.01\n")
+    write(replay / "meminfo.txt", "SwapTotal: 10 kB\nSwapFree: 10 kB\n")
+    empty_proc = tmp_path / "proc"
+    empty_proc.mkdir()
+    output = tmp_path / "snapshot.json"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--output", str(output),
+            "--raw-dir", str(tmp_path / "raw"),
+            "--backend", "nvidia-gpu",
+            "--physical-device", "0",
+            "--physical-device", "1",
+            "--replay-dir", str(replay),
+            "--load1", "0",
+            "--process-scan-root", str(empty_proc),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    snapshot = json.loads(output.read_text())
+    assert snapshot["backend"] == "nvidia-gpu"
+    assert snapshot["backend_version"] == "600.01"
+    assert snapshot["devices"][0]["physical_id"] == 0
+    assert snapshot["devices"][0]["hbm_usage_pct"] == 25.0
+    assert snapshot["devices"][0]["aicore_usage_pct"] == 37.0
+    assert snapshot["devices"][0]["processes"][0]["owned_by_attempt"] is False
+    assert snapshot["devices"][1]["processes"] == []
+
+
+def test_nvidia_process_parser_handles_quoted_process_names():
+    processes = capture.parse_nvidia_processes(
+        'GPU-abc, 123, "worker, shard 0", 256\n'
+    )
+
+    assert processes["GPU-abc"][0]["name"] == "worker, shard 0"
 
 
 def test_unmapped_device_is_reported_without_guessing(tmp_path):

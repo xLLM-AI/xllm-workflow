@@ -30,6 +30,7 @@ HEX_COMMIT = re.compile(r"^[0-9a-f]{7,64}$")
 COMMON_REQUIRED = (
     "schema_version",
     "run_id",
+    "campaign_fingerprint",
     "evidence_type",
     "level",
     "identity.framework",
@@ -448,6 +449,19 @@ def main(argv: list[str] | None = None) -> int:
         missing.extend(dotted for dotted in required if is_missing(get_path(document, dotted)))
         if document.get("schema_version") != SCHEMA_VERSION:
             blockers.append(f"unsupported_schema_version:{document.get('schema_version')}")
+        manifest_path = run_root / "manifest.json"
+        if manifest_path.is_file():
+            manifest = load_json(manifest_path)
+            spec = manifest.get("spec", {})
+            expected_identity = {
+                "campaign_fingerprint": manifest.get("fingerprint"),
+                "run_id": get_path(spec, "identity.task_id"),
+                "identity.framework": get_path(spec, "code.framework"),
+            }
+            for dotted, expected in expected_identity.items():
+                actual = get_path(document, dotted)
+                if actual != expected:
+                    mismatches.append(f"manifest_identity:{dotted}:{actual!r}!={expected!r}")
         commit = get_path(document, "identity.commit")
         binary_sha = get_path(document, "identity.binary_sha256")
         request_fingerprint = get_path(document, "workload.request_fingerprint")

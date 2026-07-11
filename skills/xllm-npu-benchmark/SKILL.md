@@ -80,11 +80,16 @@ description: 在昇腾 NPU 上进行 xLLM、vLLM-Ascend、SGLang NPU 等 OpenAI-
 
 ```bash
 python skills/xllm-npu-benchmark/scripts/capture_fairness_snapshot.py \
+  --backend ascend-npu \
   --output "$RUN_ROOT/env/<phase>.json" \
   --raw-dir "$RUN_ROOT/env/raw/<phase>" \
   --physical-device <id> \
   [--attempt-pid-file "$RUN_ROOT/service/$ATTEMPT_ID/pids.txt"]
 ```
+
+`--backend` 支持 `ascend-npu`（默认）和 `nvidia-gpu`。两种 backend 输出同一 normalized
+schema，并记录 `backend`、`parser_version`、工具版本和 raw 输出；公平性门禁要求同一
+candidate 的全部 snapshot 与声明 backend 一致。
 
 `before` 阶段不传 PID manifest；服务启动后的 idle/after 阶段传入同一 attempt 的 PID
 manifest。采集失败或字段无法解析时保留 raw artifact，并停止正式比较，不手工补猜值。

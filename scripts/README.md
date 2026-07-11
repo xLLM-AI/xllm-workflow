@@ -40,6 +40,11 @@ python scripts/xllm_flow.py attempt add --run-root runs/example-campaign --spec 
   --metrics-json runs/example-campaign/reports/candidate-comparison.json \
   --artifact reports/candidate-comparison.json --decision accept --repeat-index 0
 python scripts/xllm_flow.py run validate --run-root runs/example-campaign --status pass
+python scripts/xllm_flow.py export evidence --run-root runs/example-campaign
+python scripts/xllm_flow.py export fairness-candidate --run-root runs/example-campaign \
+  --name candidate
+python scripts/xllm_flow.py gate all --run-root runs/example-campaign \
+  --require build --require service --require evidence --formal
 python scripts/xllm_flow.py run finalize --run-root runs/example-campaign --status pass \
   --reviewed-by "$USER" --retention-decision keep --kept-path reports/metrics.json
 ```
@@ -69,6 +74,11 @@ performance optimization 的 candidate comparison metrics 必须包含同键、�
 
 统一入口负责身份、证据和生命周期；服务启动、EvalScope、profiling 和 compare
 继续调用本目录现有确定性脚本。
+
+`manifest.json` 是 run identity 的唯一来源。`export evidence` 和
+`export fairness-candidate` 从 manifest、attempt ledger 与生命周期 artifacts 投影派生文件；
+不要手工重复填写 framework、commit、设备顺序或 workload fingerprint。`gate all` 汇总
+build/service/evidence/fairness/Big-Rock 门禁，并在任何投影身份漂移时阻断。
 
 ## 原则
 

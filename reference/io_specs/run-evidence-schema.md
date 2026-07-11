@@ -8,6 +8,7 @@ humans, but they do not replace this contract for formal evidence.
 {
   "schema_version": 1,
   "run_id": "<stable run id>",
+  "campaign_fingerprint": "<manifest fingerprint>",
   "evidence_type": "performance | accuracy | profiling",
   "level": "smoke | quick | full | formal-pr | sota-report",
   "identity": {
@@ -115,3 +116,8 @@ all be present in `binary-provenance.json`; missing provenance is inconclusive, 
 The validator does not encode model names, PR numbers, device-specific performance
 thresholds, or incident signatures. Those belong in model history, benchmark policy, or
 incident catalogs only after independent validation.
+
+Generate this document with `xllm-flow export evidence --run-root <run>`. The run manifest is
+the source of truth for run id, campaign fingerprint, framework, code identity, model, device
+order, workload, and service attempt. `xllm-flow gate all` rejects a manually edited projection
+when these values no longer match the manifest.

@@ -71,6 +71,14 @@ environment:
     driver: ""
     torch: ""
     torch_npu: ""
+evidence:
+  type: performance
+  level: quick
+  service_attempt_id: attempt-001
+  fairness:
+    before: env/fairness-before.json
+    idle: [env/fairness-idle-0.json]
+    after: env/fairness-after.json
 comparison:
   baseline_run_id: ""
   baseline_manifest: ""

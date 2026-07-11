@@ -10,6 +10,7 @@ SCRIPT = ROOT / "scripts/validate_run_evidence.py"
 COMMIT = "1" * 40
 BINARY_SHA = "2" * 64
 REQUEST_SHA = "3" * 64
+CAMPAIGN_SHA = "4" * 64
 
 
 def write_json(path, value):
@@ -64,6 +65,7 @@ def base_evidence(run_root, evidence_type):
     return {
         "schema_version": 1,
         "run_id": "run-001",
+        "campaign_fingerprint": CAMPAIGN_SHA,
         "evidence_type": evidence_type,
         "level": "formal-pr",
         "identity": {
@@ -254,6 +256,23 @@ def test_binary_commit_mismatch_is_inconclusive(tmp_path):
 
     assert result.returncode == 1
     assert any(item.startswith("build_commit:") for item in verdict(run_root)["mismatches"])
+
+
+def test_manifest_identity_drift_is_inconclusive(tmp_path):
+    run_root = tmp_path / "run"
+    make_performance_run(run_root)
+    write_json(run_root / "manifest.json", {
+        "fingerprint": "9" * 64,
+        "spec": {"identity": {"task_id": "run-001"}, "code": {"framework": "xllm"}},
+    })
+
+    result = invoke(run_root)
+
+    assert result.returncode == 1
+    assert any(
+        item.startswith("manifest_identity:campaign_fingerprint:")
+        for item in verdict(run_root)["mismatches"]
+    )
 
 
 def test_missing_build_provenance_identity_is_inconclusive(tmp_path):

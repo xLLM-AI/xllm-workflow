@@ -79,7 +79,7 @@ def validate_spec(spec: dict[str, Any]) -> list[str]:
     if spec.get("version") != 1:
         errors.append("version must be 1")
     mapping_sections = ["identity", "code", "model", "service", "workload"]
-    optional_mappings = ["evaluation", "profiling", "environment", "comparison", "artifacts", "retention"]
+    optional_mappings = ["evaluation", "profiling", "environment", "comparison", "artifacts", "retention", "evidence"]
     for name in mapping_sections:
         if not isinstance(spec.get(name), dict):
             errors.append(f"{name} must be a mapping")
@@ -869,6 +869,287 @@ def resolve_run_artifact(run_root: Path, value: str) -> Path:
     return candidate
 
 
+def relative_artifact(run_root: Path, path: Path) -> str:
+    return str(path.resolve().relative_to(run_root.resolve()))
+
+
+def selected_attempt(entries: list[dict[str, Any]]) -> dict[str, Any] | None:
+    accepted = [
+        entry for entry in entries
+        if entry.get("status") == "pass" and str(entry.get("decision", "")).lower() in {"accept", "accepted", "keep"}
+    ]
+    passed = [entry for entry in entries if entry.get("status") == "pass"]
+    return (accepted or passed or entries)[-1] if entries else None
+
+
+def service_attempt_id(run_root: Path, spec: dict[str, Any], requested: str | None = None) -> str:
+    if requested:
+        return requested
+    configured = get_nested(spec, "evidence.service_attempt_id")
+    if configured:
+        return str(configured)
+    current = run_root / "service" / "current-attempt"
+    if current.is_file():
+        return current.read_text(encoding="utf-8").strip()
+    attempts = sorted(path.name for path in (run_root / "service").glob("*") if path.is_dir()) if (run_root / "service").is_dir() else []
+    return attempts[-1] if attempts else "attempt-001"
+
+
+def artifact_status(path: Path) -> str:
+    return str(read_json(path, {}).get("status", "MISSING"))
+
+
+def build_run_evidence(run_root: Path, evidence_type: str | None = None, level: str | None = None, attempt_id: str | None = None) -> dict[str, Any]:
+    run_root = run_root.resolve()
+    manifest = read_json(run_root / "manifest.json", {})
+    if not manifest:
+        raise ValueError(f"manifest.json is required: {run_root}")
+    spec = manifest.get("spec", {})
+    entries = read_attempts(run_root)
+    selected = selected_attempt(entries)
+    code_identity = (selected or {}).get("code_identity") or manifest.get("code_identity", {})
+    kind = get_nested(spec, "identity.kind")
+    resolved_type = evidence_type or get_nested(spec, "evidence.type") or {"accuracy": "accuracy", "profiling": "profiling"}.get(kind, "performance")
+    if resolved_type not in {"performance", "accuracy", "profiling"}:
+        raise ValueError(f"unsupported evidence type: {resolved_type}")
+    resolved_level = level or get_nested(spec, "evidence.level") or get_nested(spec, "identity.level")
+    service_id = service_attempt_id(run_root, spec, attempt_id)
+    service_root = run_root / "service" / service_id
+    physical_devices = get_nested(spec, "service.physical_devices") or get_nested(spec, "service.devices") or []
+    host = str(get_nested(spec, "service.host") or "127.0.0.1")
+    port = int(get_nested(spec, "service.port") or 8000)
+    evidence_artifacts = get_nested(spec, "evidence.artifacts") or {}
+    defaults = {
+        "environment": {"before": "env/before", "after": "env/after"},
+        "performance": {"raw": "perf/raw", "metrics": "perf/metrics.json"},
+        "accuracy": {
+            "request_config": "accuracy/request-config.json", "dataset_config": "accuracy/dataset-config.json",
+            "raw_predictions": "accuracy/raw-predictions.jsonl", "failed_cases": "accuracy/failed-cases.jsonl",
+            "score": "accuracy/score.json",
+        },
+        "profiling": {
+            "prof": "profiling/PROF", "export": "profiling/mindstudio_profiler_output",
+            "capture_log": "profiling/capture.log", "workload_log": "profiling/workload.log",
+            "analysis": "profiling/analysis.json",
+        },
+    }
+    artifacts = {
+        key: {**value, **evidence_artifacts.get(key, {})}
+        for key, value in defaults.items()
+    }
+    artifacts.update({
+        key: value for key, value in evidence_artifacts.items() if key not in defaults
+    })
+    workload = spec.get("workload", {})
+    document: dict[str, Any] = {
+        "schema_version": 1,
+        "run_id": get_nested(spec, "identity.task_id"),
+        "campaign_fingerprint": manifest.get("fingerprint"),
+        "evidence_type": resolved_type,
+        "level": resolved_level,
+        "identity": {
+            "framework": get_nested(spec, "code.framework"), "repo_path": code_identity.get("path"),
+            "commit": code_identity.get("commit"), "dirty_diff_sha256": code_identity.get("diff_sha256"),
+            "binary_path": code_identity.get("binary_path") or get_nested(spec, "code.binary"),
+            "binary_sha256": code_identity.get("binary_sha256"),
+            "build_verdict": "build/verdict.json", "binary_provenance": "build/binary-provenance.json",
+        },
+        "environment": {
+            "physical_device_ids": physical_devices, "visible_device_order": get_nested(spec, "service.devices") or [],
+            "hardware": get_nested(spec, "environment.hardware") or "ascend-npu",
+            "software_stack": manifest.get("versions", {}),
+        },
+        "model": {
+            "name": get_nested(spec, "model.name"), "path": get_nested(spec, "model.path"),
+            "tokenizer_path": get_nested(spec, "model.tokenizer"), "dtype": get_nested(spec, "model.dtype") or "unspecified",
+        },
+        "service": {
+            "attempt_id": service_id, "api_url": f"http://{host}:{port}/v1",
+            "startup_command": f"service/{service_id}/command.sh", "pid_file": f"service/{service_id}/pids.txt",
+            "logs": [relative_artifact(run_root, path) for path in sorted(service_root.glob("*.log"))] or [f"service/{service_id}/node_0.log"],
+            "ready": {"status": artifact_status(service_root / "ready.json"), "artifact": f"service/{service_id}/ready.json"},
+            "smoke": {"status": artifact_status(service_root / "smoke.json"), "artifact": f"service/{service_id}/smoke.json"},
+            "cleanup": {"status": artifact_status(service_root / "cleanup.json"), "artifact": f"service/{service_id}/cleanup.json"},
+        },
+        "workload": {
+            "request_fingerprint": stable_fingerprint(workload), "dataset": workload.get("dataset"),
+            "input_tokens": workload.get("input_tokens"), "output_tokens": workload.get("output_tokens"),
+            "parallel": workload.get("parallel"), "number": workload.get("number"),
+            "warmup_num": workload.get("warmup"), "profiling_attached": bool(get_nested(spec, "profiling.enabled")),
+            "sampling": workload.get("sampling", {}),
+        },
+        "artifacts": artifacts,
+    }
+    if resolved_type == "accuracy":
+        document["workload"].update({
+            "prompt_template_sha256": get_nested(spec, "evidence.prompt_template_sha256"),
+            "dataset_fingerprint": get_nested(spec, "evidence.dataset_fingerprint") or stable_fingerprint({"dataset": workload.get("dataset"), "path": workload.get("dataset_path")}),
+            "answer_extractor_version": get_nested(spec, "evidence.answer_extractor_version"),
+        })
+    if resolved_type == "profiling":
+        document["profiling"] = {
+            "attached_parent_pid": get_nested(spec, "evidence.attached_parent_pid"),
+            "warmup_before_capture": bool(workload.get("warmup", 0)),
+            "workload_status": get_nested(spec, "evidence.workload_status") or "PASS",
+        }
+    return document
+
+
+def export_run_evidence(run_root: Path, **kwargs: Any) -> Path:
+    output = run_root.resolve() / "run-evidence.json"
+    write_json(output, build_run_evidence(run_root, **kwargs))
+    return output
+
+
+def build_fairness_candidate(run_root: Path, name: str) -> dict[str, Any]:
+    run_root = run_root.resolve()
+    evidence = read_json(run_root / "run-evidence.json", {}) or build_run_evidence(run_root)
+    manifest = read_json(run_root / "manifest.json", {})
+    spec = manifest.get("spec", {})
+    fairness = get_nested(spec, "evidence.fairness") or {}
+    before_path = resolve_run_artifact(run_root, fairness.get("before", "env/fairness-before.json"))
+    after_path = resolve_run_artifact(run_root, fairness.get("after", "env/fairness-after.json"))
+    idle_paths = [resolve_run_artifact(run_root, value) for value in fairness.get("idle", ["env/fairness-idle-0.json"])]
+    environment = evidence.get("environment", {})
+    model = evidence.get("model", {})
+    workload = evidence.get("workload", {})
+    before = read_json(before_path, {})
+    idle_samples = [read_json(path, {}) for path in idle_paths]
+    after = read_json(after_path, {})
+    snapshots = [before, *idle_samples, after]
+    backends = {snapshot.get("backend") for snapshot in snapshots if snapshot.get("backend")}
+    selected = selected_attempt(read_attempts(run_root))
+    accepted = bool(
+        selected
+        and selected.get("status") == "pass"
+        and str(selected.get("decision", "")).lower() in {"accept", "accepted", "keep"}
+    )
+    return {
+        "name": name, "run_root": str(run_root), "evidence_verdict": "evidence-verdict.json",
+        "campaign_fingerprint": manifest.get("fingerprint"),
+        "identity": {
+            "hardware_fingerprint": stable_fingerprint({"hardware": environment.get("hardware"), "software": environment.get("software_stack")}),
+            "device_backend": next(iter(backends)) if len(backends) == 1 else None,
+            "physical_device_ids": environment.get("physical_device_ids"), "visible_device_order": environment.get("visible_device_order"),
+            "model_fingerprint": stable_fingerprint(model), "tokenizer_fingerprint": stable_fingerprint({"tokenizer": model.get("tokenizer_path")}),
+            "dtype": model.get("dtype"), "quantization": get_nested(spec, "model.quantization") or "none",
+            "workload_fingerprint": workload.get("request_fingerprint"), "sampling_fingerprint": stable_fingerprint(workload.get("sampling", {})),
+            "sla_fingerprint": stable_fingerprint(get_nested(spec, "evaluation.performance.sla") or {}),
+            "optimization_policy_fingerprint": stable_fingerprint({"changed_variables": get_nested(spec, "comparison.changed_variables") or [], "service_flags": get_nested(spec, "service.flags") or {}}),
+            "profiling_attached": bool(workload.get("profiling_attached")), "tuning_completed": accepted,
+        },
+        "environment": {
+            "before": before, "idle_samples": idle_samples, "after": after,
+        },
+    }
+
+
+def export_fairness_candidate(run_root: Path, name: str, output: Path | None = None) -> Path:
+    target = output or run_root.resolve() / "fairness-candidate.json"
+    write_json(target, build_fairness_candidate(run_root, name))
+    return target
+
+
+def projected_identity_mismatches(run_root: Path, manifest: dict[str, Any]) -> list[str]:
+    spec = manifest.get("spec", {})
+    expected = {
+        "campaign_fingerprint": manifest.get("fingerprint"),
+        "run_id": get_nested(spec, "identity.task_id"),
+        "framework": get_nested(spec, "code.framework"),
+    }
+    mismatches: list[str] = []
+    evidence = read_json(run_root / "run-evidence.json", {})
+    if evidence:
+        observed = {
+            "campaign_fingerprint": evidence.get("campaign_fingerprint"),
+            "run_id": evidence.get("run_id"),
+            "framework": get_nested(evidence, "identity.framework"),
+        }
+        mismatches.extend(
+            f"run-evidence.{key}:{observed[key]!r}!={value!r}"
+            for key, value in expected.items()
+            if observed[key] != value
+        )
+    candidate = read_json(run_root / "fairness-candidate.json", {})
+    if candidate and candidate.get("campaign_fingerprint") != expected["campaign_fingerprint"]:
+        mismatches.append(
+            "fairness-candidate.campaign_fingerprint:"
+            f"{candidate.get('campaign_fingerprint')!r}!={expected['campaign_fingerprint']!r}"
+        )
+    provenance = read_json(run_root / "build" / "binary-provenance.json", {})
+    if provenance and provenance.get("framework") is not None and provenance.get("framework") != expected["framework"]:
+        mismatches.append(
+            f"build.framework:{provenance.get('framework')!r}!={expected['framework']!r}"
+        )
+    return mismatches
+
+
+def run_gate_all(run_root: Path, required: list[str] | None = None, fairness_root: Path | None = None, formal: bool = False, generate_evidence: bool = False) -> dict[str, Any]:
+    run_root = run_root.resolve()
+    manifest = read_json(run_root / "manifest.json", {})
+    if not manifest:
+        raise ValueError(f"manifest.json is required: {run_root}")
+    kind = get_nested(manifest.get("spec", {}), "identity.kind")
+    components = required or ["build", "service", "evidence"]
+    if required is None and (fairness_root or (run_root / "fairness.json").is_file()):
+        components.append("fairness")
+    if required is None and kind == "performance_optimization":
+        components.append("big-rock")
+    components = list(dict.fromkeys(components))
+    if generate_evidence:
+        export_run_evidence(run_root)
+    results: dict[str, Any] = {}
+    blockers = []
+    identity_mismatches = projected_identity_mismatches(run_root, manifest)
+    results["identity"] = {"passed": not identity_mismatches, "mismatches": identity_mismatches}
+    if identity_mismatches:
+        blockers.append("projected identity does not match manifest")
+    if "build" in components:
+        verdict = read_json(run_root / "build" / "verdict.json", {})
+        passed = verdict.get("status") == "PASS" and verdict.get("binary_ready") is True
+        results["build"] = {"passed": passed, "verdict": verdict}
+        if not passed:
+            blockers.append("build gate did not pass")
+    if "service" in components:
+        service_id = service_attempt_id(run_root, manifest.get("spec", {}))
+        statuses = {name: artifact_status(run_root / "service" / service_id / f"{name}.json") for name in ["ready", "smoke", "cleanup"]}
+        passed = all(value == "PASS" for value in statuses.values())
+        results["service"] = {"passed": passed, "attempt_id": service_id, "statuses": statuses}
+        if not passed:
+            blockers.append("service lifecycle gate did not pass")
+    if "evidence" in components:
+        script = Path(__file__).resolve().parent / "validate_run_evidence.py"
+        completed = subprocess.run([sys.executable, str(script), "--run-root", str(run_root)], text=True, capture_output=True, check=False)
+        verdict = read_json(run_root / "evidence-verdict.json", {})
+        passed = completed.returncode == 0 and verdict.get("status") == "PASS" and (not formal or verdict.get("claim_scope") == "formal")
+        results["evidence"] = {"passed": passed, "returncode": completed.returncode, "verdict": verdict}
+        if not passed:
+            blockers.append("run evidence gate did not pass")
+    if "fairness" in components:
+        root = (fairness_root or run_root).resolve()
+        script = Path(__file__).resolve().parents[1] / "skills" / "xllm-npu-benchmark" / "scripts" / "benchmark_fairness_gate.py"
+        completed = subprocess.run([sys.executable, str(script), "--comparison-root", str(root)], text=True, capture_output=True, check=False)
+        verdict = read_json(root / "fairness-verdict.json", {})
+        passed = completed.returncode == 0 and verdict.get("status") == "PASS"
+        results["fairness"] = {"passed": passed, "returncode": completed.returncode, "verdict": verdict}
+        if not passed:
+            blockers.append("benchmark fairness gate did not pass")
+    if "big-rock" in components:
+        errors = validate_big_rock_gate(run_root)
+        status = read_json(run_root / "analysis" / "big-rock-gate.json", {}).get("status")
+        passed = not errors and status in {"PASS", "EXEMPT"}
+        results["big-rock"] = {"passed": passed, "status": status, "errors": errors}
+        if not passed:
+            blockers.append("Big-Rock gate did not pass")
+    result = {
+        "schema_version": 1, "generated_at_utc": utc_now(), "run_root": str(run_root),
+        "campaign_fingerprint": manifest.get("fingerprint"), "required": components,
+        "status": "PASS" if not blockers else "BLOCKED", "blockers": blockers, "components": results,
+    }
+    write_json(run_root / "gate-all-verdict.json", result)
+    return result
+
+
 def validate_run(run_root: Path, conclusion_status: str | None = None) -> list[str]:
     errors = []
     manifest = read_json(run_root / "manifest.json", {})
@@ -1163,6 +1444,17 @@ def build_parser() -> argparse.ArgumentParser:
     pf.add_argument("--output", type=Path)
     fingerprint = commands.add_parser("fingerprint")
     fingerprint.add_argument("--spec", type=Path, required=True)
+    export_command = commands.add_parser("export")
+    export_sub = export_command.add_subparsers(dest="action", required=True)
+    export_evidence = export_sub.add_parser("evidence")
+    export_evidence.add_argument("--run-root", type=Path, required=True)
+    export_evidence.add_argument("--type", choices=["performance", "accuracy", "profiling"])
+    export_evidence.add_argument("--level", choices=["smoke", "quick", "full", "formal-pr", "sota-report"])
+    export_evidence.add_argument("--attempt-id")
+    export_fairness = export_sub.add_parser("fairness-candidate")
+    export_fairness.add_argument("--run-root", type=Path, required=True)
+    export_fairness.add_argument("--name", required=True)
+    export_fairness.add_argument("--output", type=Path)
     run = commands.add_parser("run")
     run_sub = run.add_subparsers(dest="action", required=True)
     create = run_sub.add_parser("create")
@@ -1224,6 +1516,12 @@ def build_parser() -> argparse.ArgumentParser:
     gate_sub = gate.add_subparsers(dest="action", required=True)
     gate_check = gate_sub.add_parser("check")
     gate_check.add_argument("--run-root", type=Path, required=True)
+    gate_all = gate_sub.add_parser("all")
+    gate_all.add_argument("--run-root", type=Path, required=True)
+    gate_all.add_argument("--require", action="append", choices=["build", "service", "evidence", "fairness", "big-rock"])
+    gate_all.add_argument("--fairness-root", type=Path)
+    gate_all.add_argument("--formal", action="store_true")
+    gate_all.add_argument("--generate-evidence", action="store_true")
     return parser
 
 
@@ -1256,6 +1554,10 @@ def main(argv: list[str] | None = None) -> int:
             return 2 if result["status"] == "FAIL" else 0
         elif args.command == "fingerprint":
             print(experiment_fingerprint(load_spec(args.spec), args.spec))
+        elif args.command == "export" and args.action == "evidence":
+            print(export_run_evidence(args.run_root, evidence_type=args.type, level=args.level, attempt_id=args.attempt_id))
+        elif args.command == "export" and args.action == "fairness-candidate":
+            print(export_fairness_candidate(args.run_root, args.name, args.output))
         elif args.command == "checkpoint":
             if args.phase == "implementation":
                 gate_errors = validate_big_rock_gate(args.run_root)
@@ -1304,6 +1606,10 @@ def main(argv: list[str] | None = None) -> int:
             valid = not errors
             print(json.dumps({"valid": valid, "gate_status": gate_status, "implementation_allowed": valid and gate_status in {"PASS", "EXEMPT"}, "errors": errors}, ensure_ascii=False, indent=2))
             return 2 if errors else 0 if gate_status in {"PASS", "EXEMPT"} else 1
+        elif args.command == "gate" and args.action == "all":
+            result = run_gate_all(args.run_root, args.require, args.fairness_root, args.formal, args.generate_evidence)
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return 0 if result["status"] == "PASS" else 2
         elif args.command == "run" and args.action == "create":
             print(run_create(args.spec, registry_path, args.allow_inconclusive))
         elif args.command == "run" and args.action == "validate":

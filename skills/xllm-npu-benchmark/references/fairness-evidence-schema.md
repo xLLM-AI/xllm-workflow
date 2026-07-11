@@ -20,8 +20,10 @@ verdict file under the candidate directory is not sufficient identity proof.
       "name": "before",
       "run_root": "runs/before",
       "evidence_verdict": "evidence-verdict.json",
+      "campaign_fingerprint": "<candidate manifest fingerprint>",
       "identity": {
         "hardware_fingerprint": "<hardware and software stack fingerprint>",
+        "device_backend": "ascend-npu | nvidia-gpu",
         "physical_device_ids": [0, 1],
         "visible_device_order": [0, 1],
         "model_fingerprint": "<weights fingerprint>",
@@ -49,6 +51,9 @@ Each normalized snapshot contains:
 
 ```json
 {
+  "backend": "ascend-npu",
+  "parser_version": 2,
+  "backend_version": "<collector tool version>",
   "devices": [
     {
       "physical_id": 0,
@@ -73,14 +78,19 @@ Each normalized snapshot contains:
 
 Generate snapshots with `capture_fairness_snapshot.py`. Use `--attempt-pid-file` after service
 startup so NPU processes are matched by PID plus `/proc` start time; PID equality alone is not
-ownership proof. The collector preserves raw `npu-smi` output next to the normalized JSON.
+ownership proof. The collector preserves raw backend output next to the normalized JSON.
 
 ```bash
 python skills/xllm-npu-benchmark/scripts/capture_fairness_snapshot.py \
+  --backend ascend-npu \
   --output "$RUN_ROOT/env/before.json" \
   --raw-dir "$RUN_ROOT/env/raw/before" \
   --physical-device <id>
 ```
+
+Use `--backend nvidia-gpu` for NVIDIA CSV query mode. Unknown formats, missing parser fields,
+mixed backends, and a candidate campaign fingerprint that does not match its own manifest are
+`BLOCKED`; the gate never translates them into guessed utilization values.
 
 Capture `before` prior to service launch, one or more `idle` snapshots after ready/smoke, and
 `after` after the benchmark. A parser or command failure is recorded in `collection_errors` and

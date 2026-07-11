@@ -29,6 +29,29 @@ RECONFIGURE_PREFIXES = (
     "third_party/",
 )
 TILELANG_MARKERS = ("tilelang", ".tl", "kernels/")
+FRAMEWORK_ADAPTERS: dict[str, dict[str, Any]] = {
+    "xllm": {
+        "cmake_required": True,
+        "targeted_markers": TILELANG_MARKERS,
+        "targeted_strategy": "tilelang-targeted",
+        "incremental_action": "build_incremental_xllm_target",
+        "special_dependency": "xllm_ops",
+    },
+    "vllm-ascend": {
+        "cmake_required": False,
+        "targeted_markers": ("csrc/", "kernels/", "ops/"),
+        "targeted_strategy": "framework-targeted",
+        "incremental_action": "build_incremental_framework_target",
+        "special_dependency": None,
+    },
+    "sglang": {
+        "cmake_required": False,
+        "targeted_markers": ("sgl-kernel/", "sgl_kernel/", "csrc/", "kernels/"),
+        "targeted_strategy": "framework-targeted",
+        "incremental_action": "build_incremental_framework_target",
+        "special_dependency": None,
+    },
+}
 SAFE_ENV_KEYS = (
     "ATB_HOME_PATH",
     "ASCEND_HOME_PATH",
@@ -443,15 +466,19 @@ def choose_strategy(
     cmake_mismatches: list[str],
     submodules: list[dict[str, str]],
     repo_kind: str,
+    adapter: dict[str, Any] | None = None,
 ) -> tuple[str, list[str], list[str]]:
+    adapter = adapter or FRAMEWORK_ADAPTERS["xllm"]
     reasons: list[str] = []
     actions: list[str] = []
     mismatch_paths = [entry["path"] for entry in submodules if entry["state"] == "commit_mismatch"]
     reconfigure_paths = [
         path for path in changed_paths if path.startswith(RECONFIGURE_PREFIXES)
     ]
-    tilelang_paths = [
-        path for path in changed_paths if any(marker in path.lower() for marker in TILELANG_MARKERS)
+    targeted_paths = [
+        path
+        for path in changed_paths
+        if any(marker in path.lower() for marker in adapter["targeted_markers"])
     ]
     if cmake_mismatches or mismatch_paths or reconfigure_paths:
         strategy = "reconfigure"
@@ -459,16 +486,21 @@ def choose_strategy(
         reasons.extend(f"submodule_commit_changed:{path}" for path in mismatch_paths)
         reasons.extend(f"configure_input_changed:{path}" for path in reconfigure_paths)
         actions.extend(["close_submodules", "run_configure_build"])
-    elif tilelang_paths:
-        strategy = "tilelang-targeted"
-        reasons.extend(f"tilelang_changed:{path}" for path in tilelang_paths)
-        actions.append("build_affected_tilelang_families")
+    elif targeted_paths:
+        strategy = adapter["targeted_strategy"]
+        reason_prefix = "tilelang_changed" if strategy == "tilelang-targeted" else "framework_kernel_changed"
+        reasons.extend(f"{reason_prefix}:{path}" for path in targeted_paths)
+        actions.append(
+            "build_affected_tilelang_families"
+            if strategy == "tilelang-targeted"
+            else "build_affected_framework_extensions"
+        )
     else:
         strategy = "incremental"
         reasons.append("cmake_identity_matches")
         if changed_paths:
             reasons.extend(f"ordinary_source_changed:{path}" for path in changed_paths)
-        actions.append("build_incremental_xllm_target")
+        actions.append(adapter["incremental_action"])
     if repo_kind == "linked_worktree":
         reasons.append("linked_worktree_detected")
     return strategy, reasons, actions
@@ -495,7 +527,8 @@ def selected_commands(args: argparse.Namespace, strategy: str, ops_rebuild: bool
     mapping = {
         "reconfigure": args.configure_command,
         "incremental": args.incremental_command,
-        "tilelang-targeted": args.tilelang_command,
+        "tilelang-targeted": args.targeted_command or args.tilelang_command,
+        "framework-targeted": args.targeted_command,
     }
     command = mapping[strategy]
     if command:
@@ -613,8 +646,9 @@ def binary_provenance(binary: Path | None) -> tuple[dict[str, Any], list[str]]:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo", type=Path, required=True, help="xLLM checkout/worktree")
+    parser.add_argument("--repo", type=Path, required=True, help="framework checkout/worktree")
     parser.add_argument("--run-root", type=Path, required=True, help="artifact run root")
+    parser.add_argument("--framework", choices=tuple(FRAMEWORK_ADAPTERS), default="xllm")
     parser.add_argument("--build-dir", type=Path)
     parser.add_argument("--binary", type=Path)
     parser.add_argument("--base-ref")
@@ -624,6 +658,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--configure-command")
     parser.add_argument("--incremental-command")
     parser.add_argument("--tilelang-command")
+    parser.add_argument("--targeted-command", help="command for adapter-selected kernel/extension changes")
     parser.add_argument("--xllm-ops-command")
     parser.add_argument("--build-env", action="append", default=[])
     parser.add_argument("--jobs", type=int, default=min(os.cpu_count() or 1, 16))
@@ -649,6 +684,7 @@ def main(argv: list[str] | None = None) -> int:
     blockers: list[str] = []
     failures: list[str] = []
     try:
+        adapter = FRAMEWORK_ADAPTERS[args.framework]
         repo, repo_identity = resolve_repo(args.repo)
         base_ref = choose_base_ref(repo, args.base_ref)
         changed_paths = collect_changed_paths(repo, base_ref)
@@ -657,19 +693,29 @@ def main(argv: list[str] | None = None) -> int:
         )
         blockers.extend(submodule_blockers)
         build_dir = discover_build_dir(repo, args.build_dir)
-        cmake, cmake_mismatches = cmake_identity(repo, build_dir)
+        if adapter["cmake_required"] or build_dir is not None:
+            cmake, cmake_mismatches = cmake_identity(repo, build_dir)
+            cmake["applicable"] = True
+        else:
+            cmake = {"build_dir": None, "cache_present": False, "applicable": False}
+            cmake_mismatches = []
         toolchain, toolchain_blockers = collect_toolchain(args.skip_toolchain_checks)
         blockers.extend(toolchain_blockers)
         npu_gate, npu_blockers = collect_npu_gate(args.require_npu, args.device_root)
         blockers.extend(npu_blockers)
         patches, patch_blockers = required_patch_identity(repo, args.required_patch)
         blockers.extend(patch_blockers)
-        ops = xllm_ops_identity(repo, args.opp_marker)
+        if adapter["special_dependency"] == "xllm_ops":
+            ops = xllm_ops_identity(repo, args.opp_marker)
+            ops["applicable"] = True
+        else:
+            ops = {"applicable": False, "rebuild_required": False, "reason": "framework adapter has no xllm_ops dependency"}
         strategy, reasons, actions = choose_strategy(
             changed_paths=changed_paths,
             cmake_mismatches=cmake_mismatches,
             submodules=submodules,
             repo_kind=repo_identity["kind"],
+            adapter=adapter,
         )
         if ops["rebuild_required"]:
             actions.insert(0, "rebuild_and_install_xllm_ops")
@@ -710,6 +756,8 @@ def main(argv: list[str] | None = None) -> int:
             "schema_version": SCHEMA_VERSION,
             "generated_at": utc_now(),
             "repo": str(repo),
+            "framework": args.framework,
+            "framework_adapter": adapter,
             "branch": branch,
             "commit": head,
             "base_ref": base_ref,
@@ -727,6 +775,8 @@ def main(argv: list[str] | None = None) -> int:
             "schema_version": SCHEMA_VERSION,
             "generated_at": utc_now(),
             "repo_identity": repo_identity,
+            "framework": args.framework,
+            "framework_adapter": adapter,
             "host": {
                 "platform": platform.platform(),
                 "machine": platform.machine(),
@@ -751,6 +801,8 @@ def main(argv: list[str] | None = None) -> int:
             "schema_version": SCHEMA_VERSION,
             "generated_at": utc_now(),
             "strategy": strategy,
+            "framework": args.framework,
+            "framework_adapter": adapter,
             "reasons": reasons,
             "actions": actions,
             "commands": commands,
@@ -758,6 +810,7 @@ def main(argv: list[str] | None = None) -> int:
             "jobs": effective_jobs,
             "requested_jobs": args.jobs,
             "tilelang": {
+                "applicable": args.framework == "xllm",
                 "worker_cap": args.tilelang_worker_cap,
                 "start_method": args.tilelang_start_method,
                 "changed_paths": [
@@ -811,6 +864,8 @@ def main(argv: list[str] | None = None) -> int:
             "schema_version": SCHEMA_VERSION,
             "generated_at": utc_now(),
             "repo": str(repo),
+            "framework": args.framework,
+            "framework_adapter": adapter,
             "branch": branch,
             "commit": head,
             "dirty_diff_sha256": source_fingerprint["dirty_diff_sha256"],

@@ -218,6 +218,69 @@ def test_preflight_and_run_lifecycle(tmp_path):
     assert (run_root / "retention-review.md").is_file()
 
 
+def test_run_evidence_is_projected_from_manifest_identity(tmp_path):
+    repo = tmp_path / "repo"
+    make_repo(repo)
+    run_root = tmp_path / "runs" / "campaign"
+    run_root.parent.mkdir()
+    spec = tmp_path / "experiment.yaml"
+    write_spec(spec, repo, run_root)
+    flow.run_create(spec)
+
+    evidence = flow.build_run_evidence(run_root)
+    manifest = json.loads((run_root / "manifest.json").read_text())
+
+    assert evidence["campaign_fingerprint"] == manifest["fingerprint"]
+    assert evidence["run_id"] == manifest["spec"]["identity"]["task_id"]
+    assert evidence["identity"]["framework"] == manifest["spec"]["code"]["framework"]
+    assert evidence["identity"]["commit"] == manifest["code_identity"]["commit"]
+
+
+def test_gate_all_aggregates_build_and_service_lifecycle(tmp_path):
+    run_root = tmp_path / "run"
+    flow.write_json(run_root / "manifest.json", {
+        "fingerprint": "campaign-a",
+        "spec": {
+            "identity": {"task_id": "task-a", "kind": "benchmark"},
+            "code": {"framework": "xllm"},
+        },
+    })
+    flow.write_json(run_root / "build/verdict.json", {"status": "PASS", "binary_ready": True})
+    service = run_root / "service/attempt-001"
+    for name in ("ready", "smoke", "cleanup"):
+        flow.write_json(service / f"{name}.json", {"status": "PASS"})
+
+    result = flow.run_gate_all(run_root, required=["build", "service"])
+
+    assert result["status"] == "PASS"
+    assert result["components"]["identity"]["passed"] is True
+    assert result["components"]["build"]["passed"] is True
+    assert result["components"]["service"]["passed"] is True
+
+
+def test_gate_all_blocks_drifted_projected_identity(tmp_path):
+    run_root = tmp_path / "run"
+    flow.write_json(run_root / "manifest.json", {
+        "fingerprint": "campaign-a",
+        "spec": {
+            "identity": {"task_id": "task-a", "kind": "benchmark"},
+            "code": {"framework": "xllm"},
+        },
+    })
+    flow.write_json(run_root / "build/verdict.json", {"status": "PASS", "binary_ready": True})
+    flow.write_json(run_root / "run-evidence.json", {
+        "campaign_fingerprint": "campaign-b",
+        "run_id": "task-a",
+        "identity": {"framework": "xllm"},
+    })
+
+    result = flow.run_gate_all(run_root, required=["build"])
+
+    assert result["status"] == "BLOCKED"
+    assert result["components"]["identity"]["passed"] is False
+    assert any("campaign_fingerprint" in item for item in result["components"]["identity"]["mismatches"])
+
+
 def test_run_create_rejects_different_fingerprint(tmp_path):
     repo = tmp_path / "repo"
     make_repo(repo)

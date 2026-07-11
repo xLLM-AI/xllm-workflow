@@ -14,6 +14,7 @@ from typing import Any
 SCHEMA_VERSION = 1
 COMPARE_FIELDS = (
     "identity.hardware_fingerprint",
+    "identity.device_backend",
     "identity.physical_device_ids",
     "identity.visible_device_order",
     "identity.model_fingerprint",
@@ -79,12 +80,18 @@ def validate_device_snapshot(
     snapshot: Any,
     run_root: Path,
     expected_ids: list[Any],
+    expected_backend: str,
     blockers: list[str],
     findings: list[str],
 ) -> None:
     if not isinstance(snapshot, dict) or not isinstance(snapshot.get("devices"), list):
         blockers.append(f"{candidate}:{label}:missing_devices")
         return
+    if snapshot.get("backend") != expected_backend:
+        blockers.append(f"{candidate}:{label}:backend_mismatch")
+    parser_version = snapshot.get("parser_version")
+    if isinstance(parser_version, bool) or not isinstance(parser_version, int) or parser_version < 1:
+        blockers.append(f"{candidate}:{label}:invalid_parser_version")
     if not isinstance(snapshot.get("collection_errors"), list):
         blockers.append(f"{candidate}:{label}:missing_collection_errors")
     elif snapshot.get("collection_errors"):
@@ -131,7 +138,7 @@ def validate_candidate(
         blockers.append(f"{name}:invalid_candidate")
         return
     blocker_count = len(blockers)
-    for dotted in (*COMPARE_FIELDS, "run_root", "evidence_verdict", "environment.before", "environment.idle_samples", "environment.after"):
+    for dotted in ("campaign_fingerprint", *COMPARE_FIELDS, "run_root", "evidence_verdict", "environment.before", "environment.idle_samples", "environment.after"):
         if missing(get(candidate, dotted)):
             blockers.append(f"{name}:missing:{dotted}")
     if len(blockers) > blocker_count:
@@ -147,6 +154,13 @@ def validate_candidate(
         blockers.append(f"{name}:evidence_verdict_run_root_mismatch")
     if evidence.get("status") != "PASS" or evidence.get("claim_scope") != "formal":
         findings.append(f"{name}:run_evidence_not_formal_pass")
+    manifest_path = run_root / "manifest.json"
+    if not manifest_path.is_file():
+        blockers.append(f"{name}:missing_manifest")
+    else:
+        manifest = load_json(manifest_path)
+        if manifest.get("fingerprint") != candidate.get("campaign_fingerprint"):
+            blockers.append(f"{name}:campaign_fingerprint_mismatch")
     if get(candidate, "identity.profiling_attached") is not False:
         findings.append(f"{name}:profiling_attached")
     if get(candidate, "identity.tuning_completed") is not True:
@@ -154,6 +168,7 @@ def validate_candidate(
 
     expected_ids = get(candidate, "identity.physical_device_ids")
     visible_order = get(candidate, "identity.visible_device_order")
+    expected_backend = get(candidate, "identity.device_backend")
     if not isinstance(expected_ids, list) or not isinstance(visible_order, list):
         blockers.append(f"{name}:invalid_device_identity")
         return
@@ -162,13 +177,13 @@ def validate_candidate(
     before = get(candidate, "environment.before")
     after = get(candidate, "environment.after")
     idle_samples = get(candidate, "environment.idle_samples")
-    validate_device_snapshot(name, "before", before, run_root, expected_ids, blockers, findings)
-    validate_device_snapshot(name, "after", after, run_root, expected_ids, blockers, findings)
+    validate_device_snapshot(name, "before", before, run_root, expected_ids, expected_backend, blockers, findings)
+    validate_device_snapshot(name, "after", after, run_root, expected_ids, expected_backend, blockers, findings)
     if not isinstance(idle_samples, list) or len(idle_samples) < policy["min_idle_samples"]:
         blockers.append(f"{name}:insufficient_idle_samples")
         idle_samples = []
     for index, sample in enumerate(idle_samples):
-        validate_device_snapshot(name, f"idle_{index}", sample, run_root, expected_ids, blockers, findings)
+        validate_device_snapshot(name, f"idle_{index}", sample, run_root, expected_ids, expected_backend, blockers, findings)
         for device in sample.get("devices", []) if isinstance(sample, dict) else []:
             usage = device.get("aicore_usage_pct") if isinstance(device, dict) else None
             if not isinstance(usage, (int, float)):

@@ -1,6 +1,6 @@
 ---
 name: xllm-npu-build-gate
-description: xLLM NPU 可执行构建门禁。识别 checkout/worktree、校验 submodule/CMake/Python/torch/ATB/xllm_ops/必需 patch，选择构建策略，执行显式命令，并生成可追溯 binary verdict。
+description: xLLM、vLLM-Ascend、SGLang NPU 可执行构建门禁。识别 checkout/worktree、校验框架适配的构建身份、submodule、工具链和必需 patch，执行显式命令，并生成可追溯 binary verdict。
 ---
 
 # xLLM NPU 可执行构建门禁
@@ -22,6 +22,7 @@ provenance；无法证明源码、build tree 和 binary 一致时返回 `BLOCKED
 
 ```bash
 python <skill_dir>/scripts/build_gate.py \
+  --framework xllm \
   --repo <xllm_checkout_or_worktree> \
   --run-root <run_root> \
   --build-dir <cmake_build_dir> \
@@ -32,6 +33,10 @@ python <skill_dir>/scripts/build_gate.py \
   --incremental-command '<incremental xllm target command>' \
   --tilelang-command '<affected TileLang family command>'
 ```
+
+`--framework` 支持 `xllm`（默认）、`vllm-ascend` 和 `sglang`。非 xLLM 适配器使用
+`--targeted-command` 处理内核/扩展变化；未显式提供 `--build-dir` 时不强制要求 CMake
+cache，也不执行 `xllm_ops` 检查。xLLM 保留原有 CMake、TileLang 和 `xllm_ops` 强门禁。
 
 脚本按计划自动选择三个命令之一；命令必须显式提供，避免猜测不同 xLLM checkout 的
 构建入口。若 `xllm_ops` source HEAD 与 OPP marker 不一致，还必须提供：
@@ -75,6 +80,7 @@ python <skill_dir>/scripts/build_gate.py \
 | build tree 缺失、CMake source/Python/架构不匹配、configure 输入或 submodule commit 变化 | `reconfigure` |
 | CMake identity 一致，仅普通源码变化 | `incremental` |
 | TileLang kernel/wrapper 变化且 configure identity 一致 | `tilelang-targeted` |
+| vLLM-Ascend/SGLang kernel 或 extension 变化 | `framework-targeted` |
 | `xllm_ops` HEAD 与 OPP marker 不一致 | 在主构建前追加 `rebuild_and_install_xllm_ops` |
 | submodule 未初始化/冲突、必需 patch 缺失、工具链不可证明 | `BLOCKED` |
 

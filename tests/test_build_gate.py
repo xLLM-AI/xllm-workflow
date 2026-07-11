@@ -299,6 +299,66 @@ def test_xllm_ops_marker_mismatch_requires_reinstall_before_build(tmp_path):
     assert provenance["xllm_ops"]["matches"] is False
 
 
+def test_vllm_ascend_adapter_does_not_require_cmake_or_xllm_ops(tmp_path):
+    repo = init_repo(tmp_path)
+    shutil.rmtree(repo / "CMakeLists.txt") if (repo / "CMakeLists.txt").is_dir() else (repo / "CMakeLists.txt").unlink()
+    command("git", "add", "-u", cwd=repo)
+    command("git", "commit", "-m", "python build", cwd=repo)
+    (repo / "vllm_ascend").mkdir()
+    (repo / "vllm_ascend/runtime.py").write_text("# changed\n")
+    run_root = tmp_path / "run"
+
+    result = invoke(
+        repo,
+        run_root,
+        "--framework",
+        "vllm-ascend",
+        "--execute",
+        "--incremental-command",
+        "true",
+        "--binary",
+        "/bin/true",
+    )
+
+    assert result.returncode == 0, result.stderr
+    plan = read_artifact(run_root, "build-plan.json")
+    provenance = read_artifact(run_root, "binary-provenance.json")
+    assert plan["framework"] == "vllm-ascend"
+    assert plan["cmake_identity"]["applicable"] is False
+    assert provenance["xllm_ops"]["applicable"] is False
+
+
+def test_sglang_adapter_selects_generic_targeted_command(tmp_path):
+    repo = init_repo(tmp_path)
+    path = repo / "sgl-kernel/csrc/attention.cc"
+    path.parent.mkdir(parents=True)
+    path.write_text("// changed\n")
+    run_root = tmp_path / "run"
+
+    result = invoke(
+        repo,
+        run_root,
+        "--framework",
+        "sglang",
+        "--execute",
+        "--targeted-command",
+        "true",
+        "--binary",
+        "/bin/true",
+        "--jobs",
+        "32",
+        "--tilelang-worker-cap",
+        "1",
+    )
+
+    assert result.returncode == 0, result.stderr
+    plan = read_artifact(run_root, "build-plan.json")
+    assert plan["strategy"] == "framework-targeted"
+    assert plan["commands"] == ["true"]
+    assert plan["jobs"] == 32
+    assert plan["tilelang"]["applicable"] is False
+
+
 def test_plan_without_executed_binary_is_blocked(tmp_path):
     repo = init_repo(tmp_path)
     make_cache(repo)

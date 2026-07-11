@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import datetime as dt
 import json
 import os
@@ -11,7 +12,12 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+from io import StringIO
 from typing import Any
+
+
+PARSER_VERSION = 2
+BACKENDS = ("ascend-npu", "nvidia-gpu")
 
 
 def now() -> str:
@@ -32,10 +38,30 @@ def parse_mapping(text: str) -> dict[int, tuple[int, int]]:
         npu_id, chip_id, logic_id, _physical_id, name = match.groups()
         if logic_id != "-" and name.lower() != "mcu":
             mapping[int(logic_id)] = (int(npu_id), int(chip_id))
+    current: dict[str, int] = {}
+    aliases = {
+        "npu id": "npu_id",
+        "chip id": "chip_id",
+        "chip logic id": "logic_id",
+        "chip phy-id": "logic_id",
+        "chip physical id": "logic_id",
+    }
+    for line in text.splitlines():
+        field = re.match(r"^\s*([^:]+?)\s*:\s*(\d+)\s*$", line)
+        if not field:
+            continue
+        key, value = field.groups()
+        target = aliases.get(" ".join(key.lower().split()))
+        if target:
+            current[target] = int(value)
+        if {"npu_id", "chip_id", "logic_id"}.issubset(current):
+            mapping[current["logic_id"]] = (current["npu_id"], current["chip_id"])
+            current = {}
     return mapping
 
 
 def parse_keyed_by_chip(text: str, fields: dict[str, str]) -> dict[int, dict[str, Any]]:
+    normalized_fields = {" ".join(key.lower().split()): value for key, value in fields.items()}
     records: dict[int, dict[str, Any]] = {}
     current: dict[str, Any] = {}
     for line in text.splitlines():
@@ -44,8 +70,9 @@ def parse_keyed_by_chip(text: str, fields: dict[str, str]) -> dict[int, dict[str
             continue
         key, value = field.groups()
         key = key.strip()
-        if key in fields:
-            target = fields[key]
+        normalized_key = " ".join(key.lower().split())
+        if normalized_key in normalized_fields:
+            target = normalized_fields[normalized_key]
             current[target] = int(value) if value.isdigit() else value
         elif key == "Chip ID" and value.isdigit():
             records[int(value)] = current
@@ -135,11 +162,152 @@ class Source:
         (self.raw_dir / filename).write_text(text, encoding="utf-8")
         return text
 
+    def read_optional(self, filename: str, command: list[str]) -> str:
+        try:
+            return self.read(filename, command)
+        except (FileNotFoundError, RuntimeError):
+            (self.raw_dir / filename).write_text("", encoding="utf-8")
+            return ""
+
+
+def annotate_processes(processes: list[dict[str, Any]], identities: dict[int, str]) -> list[dict[str, Any]]:
+    normalized = []
+    for process in processes:
+        record = dict(process)
+        pid = record["pid"]
+        started = proc_start_time(pid)
+        record.update(
+            host_visible=started is not None,
+            owned_by_attempt=started is not None and identities.get(pid) == started,
+        )
+        normalized.append(record)
+    return normalized
+
+
+def capture_ascend(source: Source, requested: list[int], identities: dict[int, str]) -> tuple[list[dict[str, Any]], list[str]]:
+    errors: list[str] = []
+    devices: list[dict[str, Any]] = []
+    mapping = parse_mapping(source.read("mapping.txt", ["npu-smi", "info", "-m"]))
+    grouped = sorted({mapping[device][0] for device in requested if device in mapping})
+    usage_fields = {
+        "HBM Usage Rate(%)": "hbm_usage_pct",
+        "HBM Usage Rate (%)": "hbm_usage_pct",
+        "HBM Usage Rate": "hbm_usage_pct",
+        "Aicore Usage Rate(%)": "aicore_usage_pct",
+        "AICore Usage Rate (%)": "aicore_usage_pct",
+        "AI Core Usage Rate(%)": "aicore_usage_pct",
+    }
+    usage_by_npu = {
+        npu: parse_keyed_by_chip(
+            source.read(f"usages-npu{npu}.txt", ["npu-smi", "info", "-t", "usages", "-i", str(npu)]),
+            usage_fields,
+        )
+        for npu in grouped
+    }
+    health_by_npu = {
+        npu: parse_keyed_by_chip(
+            source.read(f"health-npu{npu}.txt", ["npu-smi", "info", "-t", "health", "-i", str(npu)]),
+            {"Health": "health"},
+        )
+        for npu in grouped
+    }
+    process_by_npu = {
+        npu: parse_processes(
+            source.read(f"processes-npu{npu}.txt", ["npu-smi", "info", "-t", "proc-mem", "-i", str(npu)])
+        )
+        for npu in grouped
+    }
+    for physical_id in requested:
+        if physical_id not in mapping:
+            errors.append(f"physical device missing from mapping: {physical_id}")
+            continue
+        npu_id, chip_id = mapping[physical_id]
+        usage = usage_by_npu.get(npu_id, {}).get(chip_id, {})
+        health = health_by_npu.get(npu_id, {}).get(chip_id, {})
+        if chip_id not in usage_by_npu.get(npu_id, {}):
+            errors.append(f"usage record missing for physical device: {physical_id}")
+        elif not {"hbm_usage_pct", "aicore_usage_pct"}.issubset(usage):
+            errors.append(f"usage fields incomplete for physical device: {physical_id}")
+        if chip_id not in health_by_npu.get(npu_id, {}):
+            errors.append(f"health record missing for physical device: {physical_id}")
+        elif not health.get("health"):
+            errors.append(f"health fields incomplete for physical device: {physical_id}")
+        if chip_id not in process_by_npu.get(npu_id, {}):
+            errors.append(f"process record missing for physical device: {physical_id}")
+        devices.append({
+            "physical_id": physical_id,
+            "device_uuid": None,
+            "health": health.get("health"),
+            "hbm_usage_pct": usage.get("hbm_usage_pct"),
+            "aicore_usage_pct": usage.get("aicore_usage_pct"),
+            "processes": annotate_processes(process_by_npu.get(npu_id, {}).get(chip_id, []), identities),
+        })
+    return devices, errors
+
+
+def parse_nvidia_gpus(text: str) -> dict[int, dict[str, Any]]:
+    records: dict[int, dict[str, Any]] = {}
+    for number, fields in enumerate(csv.reader(StringIO(text), skipinitialspace=True), 1):
+        fields = [item.strip() for item in fields]
+        if not fields:
+            continue
+        if len(fields) != 5:
+            raise ValueError(f"invalid nvidia gpu query at line {number}: {fields!r}")
+        index, uuid, used, total, utilization = fields
+        used_value, total_value = float(used), float(total)
+        if total_value <= 0:
+            raise ValueError(f"invalid total memory for NVIDIA GPU {index}")
+        records[int(index)] = {
+            "device_uuid": uuid,
+            "health": "OK",
+            "hbm_usage_pct": round(used_value * 100.0 / total_value, 6),
+            "aicore_usage_pct": float(utilization),
+        }
+    return records
+
+
+def parse_nvidia_processes(text: str) -> dict[str, list[dict[str, Any]]]:
+    records: dict[str, list[dict[str, Any]]] = {}
+    for number, fields in enumerate(csv.reader(StringIO(text), skipinitialspace=True), 1):
+        fields = [item.strip() for item in fields]
+        if not fields:
+            continue
+        if len(fields) != 4:
+            raise ValueError(f"invalid nvidia process query at line {number}: {fields!r}")
+        uuid, pid, name, memory = fields
+        records.setdefault(uuid, []).append({"pid": int(pid), "name": name, "memory_mb": int(float(memory))})
+    return records
+
+
+def capture_nvidia(source: Source, requested: list[int], identities: dict[int, str]) -> tuple[list[dict[str, Any]], list[str]]:
+    query = "index,uuid,memory.used,memory.total,utilization.gpu"
+    gpu_records = parse_nvidia_gpus(source.read(
+        "gpu-query.csv", ["nvidia-smi", f"--query-gpu={query}", "--format=csv,noheader,nounits"]
+    ))
+    process_records = parse_nvidia_processes(source.read(
+        "process-query.csv",
+        ["nvidia-smi", "--query-compute-apps=gpu_uuid,pid,process_name,used_gpu_memory", "--format=csv,noheader,nounits"],
+    ))
+    errors: list[str] = []
+    devices: list[dict[str, Any]] = []
+    for physical_id in requested:
+        record = gpu_records.get(physical_id)
+        if record is None:
+            errors.append(f"physical device missing from NVIDIA query: {physical_id}")
+            continue
+        devices.append({
+            "physical_id": physical_id,
+            **record,
+            "processes": annotate_processes(process_records.get(record["device_uuid"], []), identities),
+        })
+    return devices, errors
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--raw-dir", type=Path, required=True)
+    parser.add_argument("--backend", choices=BACKENDS, default="ascend-npu")
     parser.add_argument("--physical-device", dest="devices", type=int, action="append", required=True)
     parser.add_argument("--attempt-pid-file", type=Path)
     parser.add_argument("--replay-dir", type=Path)
@@ -149,66 +317,17 @@ def main() -> int:
     args = parser.parse_args()
     errors: list[str] = []
     devices: list[dict[str, Any]] = []
+    version = ""
     source = Source(args.raw_dir, args.replay_dir)
     try:
-        mapping = parse_mapping(source.read("mapping.txt", ["npu-smi", "info", "-m"]))
         identities = attempt_identities(args.attempt_pid_file)
-        grouped = sorted({mapping[device][0] for device in args.devices if device in mapping})
-        usage_by_npu = {
-            npu: parse_keyed_by_chip(
-                source.read(f"usages-npu{npu}.txt", ["npu-smi", "info", "-t", "usages", "-i", str(npu)]),
-                {"HBM Usage Rate(%)": "hbm_usage_pct", "Aicore Usage Rate(%)": "aicore_usage_pct"},
-            )
-            for npu in grouped
-        }
-        health_by_npu = {
-            npu: parse_keyed_by_chip(
-                source.read(f"health-npu{npu}.txt", ["npu-smi", "info", "-t", "health", "-i", str(npu)]),
-                {"Health": "health"},
-            )
-            for npu in grouped
-        }
-        process_by_npu = {
-            npu: parse_processes(
-                source.read(f"processes-npu{npu}.txt", ["npu-smi", "info", "-t", "proc-mem", "-i", str(npu)])
-            )
-            for npu in grouped
-        }
-        for physical_id in args.devices:
-            if physical_id not in mapping:
-                errors.append(f"physical device missing from mapping: {physical_id}")
-                continue
-            npu_id, chip_id = mapping[physical_id]
-            usage = usage_by_npu.get(npu_id, {}).get(chip_id, {})
-            health = health_by_npu.get(npu_id, {}).get(chip_id, {})
-            if chip_id not in usage_by_npu.get(npu_id, {}):
-                errors.append(f"usage record missing for physical device: {physical_id}")
-            elif not {"hbm_usage_pct", "aicore_usage_pct"}.issubset(usage):
-                errors.append(f"usage fields incomplete for physical device: {physical_id}")
-            if chip_id not in health_by_npu.get(npu_id, {}):
-                errors.append(f"health record missing for physical device: {physical_id}")
-            elif not health.get("health"):
-                errors.append(f"health fields incomplete for physical device: {physical_id}")
-            if chip_id not in process_by_npu.get(npu_id, {}):
-                errors.append(f"process record missing for physical device: {physical_id}")
-            processes = []
-            for process in process_by_npu.get(npu_id, {}).get(chip_id, []):
-                pid = process["pid"]
-                started = proc_start_time(pid)
-                process.update(
-                    host_visible=started is not None,
-                    owned_by_attempt=started is not None and identities.get(pid) == started,
-                )
-                processes.append(process)
-            devices.append(
-                {
-                    "physical_id": physical_id,
-                    "health": health.get("health"),
-                    "hbm_usage_pct": usage.get("hbm_usage_pct"),
-                    "aicore_usage_pct": usage.get("aicore_usage_pct"),
-                    "processes": processes,
-                }
-            )
+        if args.backend == "ascend-npu":
+            devices, backend_errors = capture_ascend(source, args.devices, identities)
+            version = source.read_optional("backend-version.txt", ["npu-smi", "--version"])
+        else:
+            devices, backend_errors = capture_nvidia(source, args.devices, identities)
+            version = source.read_optional("backend-version.txt", ["nvidia-smi", "--query-gpu=driver_version", "--format=csv,noheader"])
+        errors.extend(backend_errors)
         meminfo_path = args.meminfo_file
         if args.replay_dir and meminfo_path == Path("/proc/meminfo"):
             meminfo_path = args.replay_dir / "meminfo.txt"
@@ -224,6 +343,9 @@ def main() -> int:
         host = {}
     snapshot = {
         "schema_version": 1,
+        "backend": args.backend,
+        "parser_version": PARSER_VERSION,
+        "backend_version": version.strip() or None,
         "captured_at": now(),
         "devices": devices,
         "host": host,
