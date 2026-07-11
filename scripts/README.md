@@ -11,12 +11,28 @@
 - `collect_evalscope_results.py` — 收集并标准化 evalscope 评测结果
 - `compare_npu_benchmark.py` — 跨框架 NPU 性能对比
 - `validate_framework_cli.py` — 验证框架 CLI 参数合法性
+- `validate_run_evidence.py` — 校验 performance/accuracy/profiling 的机器可读证据、
+  build/binary/service identity 和 artifact 完整性，输出 `PASS/INCONCLUSIVE/BLOCKED`
 
 ## 原则
 
 - 本目录脚本为跨 skill 共用工具；skill 专属脚本保留在各 skill 的 `scripts/` 子目录
 - 所有脚本必须能在仓库根目录下直接运行
 - 参数变更写入本地 `config.json`，不在脚本中硬编码；共享默认值写入 `config.example.json`
+
+## Run Evidence Gate
+
+正式结论生成前运行：
+
+```bash
+python scripts/validate_run_evidence.py --run-root <run_root>
+```
+
+输入是 `$RUN_ROOT/run-evidence.json`，契约见
+[`../reference/io_specs/run-evidence-schema.md`](../reference/io_specs/run-evidence-schema.md)。
+脚本同时生成 `artifact-index.json` 和 `evidence-verdict.json`；只有 `PASS` 且
+`claim_scope=formal` 可以支撑 formal claim。再次校验时若声明过的 artifact 被覆盖，会保留原 index、写出
+`artifact-index.current.json` 并把结论降为 `INCONCLUSIVE`。
 
 ## 初始化 xLLM 代码仓和 Skills
 

@@ -14,7 +14,7 @@ runs/perf/<run_id>/
     mem.after.txt
     load.before.txt
     load.after.txt
-  service/
+  service/attempt-<id>/
     command.sh
     pids.txt
     node_*.log
@@ -26,6 +26,9 @@ runs/perf/<run_id>/
   metrics.json
   report.md
 ```
+
+The run root must also contain `run-evidence.json`; validate it with
+`scripts/validate_run_evidence.py` before publishing a performance claim.
 
 `metrics.json` should use stable field names:
 
@@ -71,3 +74,5 @@ Rules:
   the changed parameter is the experiment itself.
 - For MTP/speculative runs, record xLLM server counters from `/vars` before and
   after the workload. Evalscope accept rate is a weak signal only.
+- HTTP ready alone is insufficient. Formal evidence requires a successful real smoke
+  request and a cleanup/quiescence verdict from the same immutable service attempt.

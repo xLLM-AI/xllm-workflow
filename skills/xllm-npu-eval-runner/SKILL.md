@@ -266,6 +266,20 @@ $RUN_ROOT/
 报告需要说明执行了什么、原始 artifacts 存在哪里，以及本次 run 是否足够支撑正式结论。
 如果只是 smoke run，必须明确说明。
 
+### Evidence verdict
+
+写报告前按
+[`../../reference/io_specs/run-evidence-schema.md`](../../reference/io_specs/run-evidence-schema.md)
+生成 `$RUN_ROOT/run-evidence.json`，然后执行：
+
+```bash
+python scripts/validate_run_evidence.py --run-root "$RUN_ROOT"
+```
+
+只有 `evidence-verdict.json` 为 `PASS` 且 `claim_scope=formal` 才能给 formal claim。`INCONCLUSIVE` 只能用于
+smoke/debug；`BLOCKED` 必须停止后续结论生成。具体模型或某次 incident 的特判不得写入
+通用 evidence contract。
+
 ## 可选：从 GitHub 获取 Baseline
 
 从 GitHub 仓库获取 benchmark baseline 数据：

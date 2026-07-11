@@ -109,6 +109,16 @@ description: 在昇腾 NPU 上进行 xLLM、vLLM-Ascend、SGLang NPU 等 OpenAI-
 
 ### 5. 归一化和比较
 
+比较前先对每个候选 run 执行：
+
+```bash
+python scripts/validate_run_evidence.py --run-root <candidate_run_root>
+```
+
+任一候选不是 `PASS` 时，不进入百分比比较；保留 `INCONCLUSIVE/BLOCKED` 原因。
+Evidence gate 只检查单个 run 的证据闭合，候选之间的设备、顺序、参数和 SLA 公平性
+仍由本 skill 审查。
+
 脚本入口：
 
 - [`scripts/collect_evalscope_results.py`](scripts/collect_evalscope_results.py)：递归收集 evalscope `benchmark_summary.json` / `benchmark_percentile.json`，归一化为 JSONL。

@@ -3,6 +3,9 @@
 Accuracy validation should preserve enough evidence to distinguish model
 quality, sampling randomness, request formatting, and framework regressions.
 
+Formal accuracy evidence must also provide `run-evidence.json`, including prompt-template,
+dataset, request-set, binary, and service-attempt fingerprints.
+
 Recommended directory:
 
 ```text
@@ -67,3 +70,5 @@ Rules:
 - Keep raw predictions and failed cases. A single stable bad case is often more
   useful than a large score table.
 - Do not upgrade L1/L2 smoke results into a full precision conclusion.
+- Do not reuse an accuracy PASS after the binary, prompt template, dataset order, answer
+  extractor, or service attempt changes.
