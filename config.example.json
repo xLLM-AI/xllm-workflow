@@ -56,6 +56,13 @@
       "models": ["qwen35-27b", "deepseek-v3", "glm-5"],
       "datasets": ["gsm8k", "ceval"],
       "max_test_time_hours": 8
+    },
+    "scripts": {
+      "build": "code/xllm/cibuild/build_npu.sh",
+      "serve": "",
+      "smoke": "",
+      "perf": "skills/xllm-npu-perf-runner/scripts/eval_perf.sh",
+      "accuracy": "skills/xllm-npu-accuracy-runner/scripts/eval_acc.sh"
     }
   }
 }

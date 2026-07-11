@@ -285,10 +285,10 @@ python scripts/render_triage_npu.py \
 ## 参考资料
 
 按需加载：
-- [references/source-map.md](references/source-map.md) — xLLM profiler 入口和 trace 写入路径
+- [../../reference/knowledge/profiler-source-map.md](../../reference/knowledge/profiler-source-map.md) — xLLM profiler 入口和 trace 写入路径
 - [references/npu-fuse-catalog.md](references/npu-fuse-catalog.md) — NPU 融合算子目录
 - [references/npu-overlap-catalog.md](references/npu-overlap-catalog.md) — NPU 重叠机会目录
-- [references/ascend-profiling-formats.md](references/ascend-profiling-formats.md) — 昇腾 Profiling 数据格式
+- [../../reference/knowledge/ascend-profiling-formats.md](../../reference/knowledge/ascend-profiling-formats.md) — 昇腾 Profiling 数据格式
 - [references/qwen35-27b-kernel-profile.md](references/qwen35-27b-kernel-profile.md) — Qwen3.5-27B Baseline vs MTP kernel profiling 对比分析
 
 ## MTP 相关性能检查要点

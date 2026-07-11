@@ -30,7 +30,7 @@
 运行模式：full
 （可选值：full = 全量对比，两个框架都重新跑；incremental = 增量对比，仅重跑 xLLM，vLLM 使用历史结果）
 
-宿主机服务器连接方式：ssh <ssh_host>（使用 SSH key 认证，参考 xllm-npu-eval-runner 的 ssh-exec-constraints.md）
+宿主机服务器连接方式：ssh <ssh_host>（参考 ssh-remote-exec skill 的连接方式和认证方式）
 xllm执行路径：<xllm_workdir>
 xllm启动脚本：<xllm_start_script>
 vllm-ascend启动脚本：<vllm_start_script>
@@ -90,14 +90,10 @@ evalscope执行容器：<evalscope_container>
       d. 将 xLLM 新结果与 vLLM 历史结果进行对比分析
       e. vLLM 容器不需要启动，不需要执行任何操作
 15. 对性能结果进行对比分析并生成报告，存放进artifact root目录下。
-16. 报告要求：
-    - 报告必须使用中文撰写
+16. 报告格式以 `references/report-format-spec.md` 为准，其中规定了报告结构、指标维度（avg/p50/p90/p99）、对比表模板和存放路径。模式补充：
     - full 模式：报告中说明两个框架均为本次新跑结果
     - incremental 模式：报告中明确标注 xLLM 为本次新跑结果，vLLM-Ascend 为历史基线结果（引用 vLLM历史结果路径）
-    - 为每个并发场景分别生成独立的对比报告
-    - 生成一份总报告，汇总所有并发场景的完整对比分析（包含所有指标的avg、p50、p90、p99）
-    - 总报告和各并发报告均存放进对应的artifact root目录
-17. SSH命令执行约束：遵守 xllm-npu-eval-runner 的 `references/ssh-exec-constraints.md` 中的引号规范和认证方式。
+17. SSH命令执行约束：遵守 `ssh-remote-exec` skill 中的引号规范和认证方式。
 ```
 
 ## 使用示例
