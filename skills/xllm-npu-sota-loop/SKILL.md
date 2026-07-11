@@ -6,7 +6,7 @@ description: 系统化推进 xLLM NPU 性能优化闭环，从目标定义、基
 # xLLM NPU SOTA 优化闭环
 
 使用本 skill 处理端到端 xLLM NPU 优化任务。它的目标不是让 agent 直接写
-patch，而是先建立公平基线、收集证据、选择一个可 review 的优化点、验证结果，
+patch，而是先建立公平基线、收集证据、选择端到端收益最大的可验证假设、验证结果，
 最后沉淀可复用经验。
 
 本流程借鉴 PolyArch/humanize 中“独立 review + 迭代反馈”的纪律，但不是
@@ -29,13 +29,17 @@ Research -> Learn -> Code -> Review -> Validate -> Record
 - workload、采样参数、并发、SLA 和 artifact root；
 - 精度与性能的验证门禁。
 
-在仓库外创建 run root：
+从统一 schema 创建实验，不手工创建另一套目录：
 
 ```bash
-mkdir -p "$RUN_ROOT"/{benchmark,profiles,analysis,history,kernel,patches,humanize}
+cp reference/io_specs/experiment.example.yaml experiment.yaml
+# 填写真实 repo/commit/binary/model/workload/run_root 后执行
+python scripts/xllm_flow.py preflight --spec experiment.yaml --output "$RUN_ROOT/env"
+python scripts/xllm_flow.py run create --spec experiment.yaml
 ```
 
-manifest 字段参考 `../../reference/io_specs/run-manifest-template.md`。
+`run create` 生成 manifest、CHECKPOINT、attempt hash chain、Big-Rock gate 和 ledger
+骨架。manifest 字段参考 `../../reference/io_specs/run-manifest-template.md`。
 
 ## Phase 0.5: 查询历史
 
@@ -59,6 +63,15 @@ Qwen3.5/MTP 相关材料只是可选历史参考。只有当前任务涉及该�
 
 在改代码前先启动服务并收集 warmed-up baseline。
 
+baseline 完成后立即写入 ledger：
+
+```bash
+python scripts/xllm_flow.py attempt add --run-root "$RUN_ROOT" --spec experiment.yaml \
+  --attempt-id baseline-r0 --phase benchmark --status pass --hypothesis baseline \
+  --metrics-json "$RUN_ROOT/reports/baseline-metrics.json" \
+  --artifact reports/baseline-metrics.json --repeat-index 0
+```
+
 使用：
 
 - `../xllm-npu-eval-runner/SKILL.md`：服务启动和 evalscope artifact 收集；
@@ -71,6 +84,12 @@ Qwen3.5/MTP 相关材料只是可选历史参考。只有当前任务涉及该�
 - 保留失败候选和失败原因；
 - 记录完整启动命令；
 - 保存原始 benchmark 输出和归一化 summary。
+
+如果同一任务要比较多个 PR 或候选分支，先建立一个固定 eval lane 和可复用
+build tree，再让每个候选基于同一 main/base commit 增量重编。不要把不同
+候选放在互相独立、不可复用构建产物的目录里，除非用户明确接受额外编译时间。
+候选分支的构建日志、二进制 `file`/`ldd`、必要本机 patch 和所有环境绕过步骤
+必须写入 run manifest。
 
 性能产物应满足：
 
@@ -87,6 +106,9 @@ gap = (reference_throughput - target_throughput) / reference_throughput
 
 如果目标已经达成，记录结果并停止。如果差距明确，进入证据采集。
 
+同时把差距转换成绝对预算，例如“还差 3.2 ms TPOT”。每轮必须并列显示
+baseline、当前 best、目标和剩余差距，避免用几十微秒局部收益掩盖毫秒级缺口。
+
 ## Phase 3: 证据采集
 
 选择 patch 前必须先收集解释差距的证据。
@@ -101,6 +123,36 @@ gap = (reference_throughput - target_throughput) / reference_throughput
 
 profiling 是诊断证据，不能替代正式的非 profiling 前后性能对比。
 
+### Phase 3.5: Big-Rock Gate
+
+选择 patch 前必须执行 `references/big-rock-optimization-gate.md`：
+
+1. 建立端到端 loss budget，覆盖主计算、通信、host、graph/sync、copy 和 sampling；
+2. 按 L0 架构算法、L1 pipeline/stage、L2 layer/operator、L3 kernel/detail
+   从大到小检查；
+3. 用“受影响预算 × 可消除比例”估算端到端收益区间并排序；
+4. 默认选择能关闭至少 20% 剩余目标差距的候选；
+5. L0-L2 未量化或未被证据否决前，不得进入 L3 微优化。
+
+门禁状态只能是 `PASS / DISCOVERY / BLOCKED / EXEMPT`。`DISCOVERY` 最多允许两轮
+有明确测量目标的证据采集；之后必须转为 PASS、BLOCKED 或有理由的 EXEMPT。
+进入 `implementation/code/patch` checkpoint 前必须运行：
+
+```bash
+python scripts/xllm_flow.py gate check --run-root "$RUN_ROOT"
+```
+
+必须生成：
+
+```text
+$RUN_ROOT/analysis/bottleneck-budget.md
+$RUN_ROOT/analysis/candidate-ranking.md
+$RUN_ROOT/analysis/big-rock-gate.json
+```
+
+如果最大 bucket 仍是 `unclassified`，继续做粗粒度归因，不得通过放大 timeline
+局部细节绕过门禁。
+
 ## Phase 4: 优化计划
 
 计划必须从证据导出，而不是凭直觉直接写 patch。
@@ -109,16 +161,28 @@ profiling 是诊断证据，不能替代正式的非 profiling 前后性能对�
 
 - 根因假设；
 - 相关源码路径或框架组件；
-- 下一轮只做一个优化点；
+- 下一轮只验证一个根因假设；一个假设可以跨模块，不得把“单一假设”误解为
+  “必须选择最小代码改动”；
+- 跨模块修改必须共享一个因果机制、一个联合 A/B 或禁用开关和清晰 rollback
+  边界；否则拆成多个阶段；
 - 预期收益；
 - 精度、内存、图模式、通信和兼容性风险；
 - 精确的验证命令和必须产出的 artifact。
+- 最大可行动 loss bucket，以及更大 bucket 为什么不可行动；
+- 端到端收益区间、噪声下限和占剩余目标差距的比例；
+- 当前层级 L0/L1/L2/L3，以及是否满足下钻条件。
 
 建议写到：
 
 ```text
 $RUN_ROOT/humanize/refined-plan.md
 ```
+
+如果 profiling 指向 decode graph replay 前的 host bubble，优先加载
+`references/replay-input-overlap.md`，先判断能否把 replay input / metadata
+prepare 移到 schedule-overlap 窗口中。除非已有独立 A/B 证据，不要把 custom
+kernel、async D2H、LmHead setup cache、raw metadata copy 等多个实验合并进同一个
+上库 PR。
 
 算子工作使用具体专项 skill：Triton-Ascend AOT 迁移用
 `../xllm-npu-triton-migration/SKILL.md`；已有 xllm_ops 接入 runtime 用
@@ -129,13 +193,20 @@ $RUN_ROOT/humanize/refined-plan.md
 每轮按这个顺序执行：
 
 ```text
-Research: 阅读证据，选择下一轮最窄优化目标
+Research: 更新 loss budget，选择端到端收益最大的可行动假设
 Learn:    查询模型历史和已有失败尝试
 Code:     实现一个可 review 的修改
 Review:   执行 NPU 专项代码审查
 Validate: 重新构建、测试、benchmark、profiling，并按需检查精度
 Record:   更新 run ledger 和可复用 reference
 ```
+
+每轮 Validate 后重算 loss budget 和候选排序。若连续两轮收益低于噪声，或小优化
+累计收益上限不足以关闭 20% 剩余差距，立即停止细节迭代并返回 L0/L1。
+
+候选 A/B 完成后用 `attempt add` 写入 `--parent-attempt <baseline-id>`、至少一个
+`--changed-variable` 和 `--decision accept/reject`。接受候选的 metrics JSON 必须同时
+保存 `baseline`、`current` 和 `delta`；只有 baseline 的 run 不能以性能优化 PASS 收口。
 
 推荐 skill 路由：
 
@@ -193,12 +264,24 @@ $RUN_ROOT/humanize/source-idea-ledger.md
 $RUN_ROOT/humanize/lineage.jsonl
 ```
 
+结束前执行统一验证和收口；performance optimization 必须已有通过或豁免的
+`big-rock-gate.json`、至少一个通过的 benchmark attempt，并完成 retention review：
+
+```bash
+python scripts/xllm_flow.py run validate --run-root "$RUN_ROOT" --status pass
+python scripts/xllm_flow.py run finalize --run-root "$RUN_ROOT" --status pass \
+  --reviewed-by "$USER" --retention-decision keep
+```
+
 ## 可选历史参考
 
 仅在当前任务相关时加载：
 
+- `references/replay-input-overlap.md`
+- `references/big-rock-optimization-gate.md`
 - `references/qwen35-mtp-case.md`
 - `references/mtp-transpose-elimination-case.md`
 - `../xllm-npu-benchmark/references/mtp-benchmark-lessons.md`
 - `../xllm-npu-profiler/references/mtp-profiling-lessons.md`
+- `../../reference/pr_history/qwen3-1p7b.md`
 - `../../reference/pr_history/qwen35-mtp.md`
