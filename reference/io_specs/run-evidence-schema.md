@@ -107,8 +107,10 @@ and `prof`, `export`, `capture_log`, `workload_log`, and `analysis` under
 a broader claim. `smoke` and `quick` runs retain those claim scopes, while `full`, `formal-pr`,
 and `sota-report` runs may support a `formal` claim.
 
-`cleanup.json` must separately record `npu_quiescence: PASS`. PID exit and port release do not
-prove that NPU contexts or HBM allocations were released.
+`cleanup.json` must separately record `npu_quiescence: PASS` and the normalized NPU snapshot
+used to derive it. PID exit, port release, or a caller-declared PASS do not prove that NPU
+contexts or HBM allocations were released. Build commit, binary path, and binary SHA256 must
+all be present in `binary-provenance.json`; missing provenance is inconclusive, not optional.
 
 The validator does not encode model names, PR numbers, device-specific performance
 thresholds, or incident signatures. Those belong in model history, benchmark policy, or

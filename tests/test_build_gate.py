@@ -380,6 +380,32 @@ def test_uninitialized_submodule_is_blocked(tmp_path):
     assert "submodule_uninitialized:third_party/dependency" in verdict["blockers"]
 
 
+def test_submodule_commit_mismatch_is_blocked(tmp_path):
+    dependency = tmp_path / "dependency"
+    dependency.mkdir()
+    command("git", "init", "-b", "main", cwd=dependency)
+    command("git", "config", "user.name", "Test User", cwd=dependency)
+    command("git", "config", "user.email", "test@example.com", cwd=dependency)
+    (dependency / "dep.txt").write_text("dependency\n")
+    command("git", "add", ".", cwd=dependency)
+    command("git", "commit", "-m", "dependency", cwd=dependency)
+    repo = init_repo(tmp_path)
+    command("git", "-c", "protocol.file.allow=always", "submodule", "add", dependency, "third_party/dependency", cwd=repo)
+    command("git", "commit", "-am", "add submodule", cwd=repo)
+    submodule = repo / "third_party/dependency"
+    command("git", "config", "user.name", "Test User", cwd=submodule)
+    command("git", "config", "user.email", "test@example.com", cwd=submodule)
+    (submodule / "dep.txt").write_text("different commit\n")
+    command("git", "add", ".", cwd=submodule)
+    command("git", "commit", "-m", "different", cwd=submodule)
+    make_cache(repo)
+
+    result = invoke(repo, tmp_path / "run", "--execute", "--incremental-command", "true", "--binary", "/bin/true")
+
+    assert result.returncode == 2
+    assert "submodule_commit_mismatch:third_party/dependency" in read_artifact(tmp_path / "run", "verdict.json")["blockers"]
+
+
 def test_linked_worktree_identity_is_recorded(tmp_path):
     repo = init_repo(tmp_path)
     lane = tmp_path / "eval-lane"

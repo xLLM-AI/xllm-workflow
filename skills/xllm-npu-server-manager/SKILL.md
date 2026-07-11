@@ -124,6 +124,7 @@ ready 和 smoke 分别写入 `ready.json`、`smoke.json`；原始响应保存为
 只停止本次 `run.sh` 写入 PID manifest 的进程，避免误杀共享主机或容器中的其他服务：
 
 ```bash
+export NPU_PHYSICAL_DEVICES="2,3"
 bash <skill_dir>/scripts/stop.sh
 pgrep -af xllm > "$RUN_ROOT/env/process.after_stop.txt" || true
 ```
@@ -131,9 +132,9 @@ pgrep -af xllm > "$RUN_ROOT/env/process.after_stop.txt" || true
 `stop.sh` 先发送 TERM，等待 `STOP_TIMEOUT`，仅对 PID 和 `/proc` start time 都匹配的
 进程发送 KILL。attempt 模式保留 `pids.txt`，检查 PID 和端口后写入 `cleanup.json`。
 
-进程退出和端口释放不能证明 NPU context/HBM 已清理。只有独立环境门禁确认后才传入
-`NPU_QUIESCENCE=PASS`；默认 `NOT_CHECKED` 会使正式 Run Evidence 结论降为
-`INCONCLUSIVE`。
+进程退出和端口释放不能证明 NPU context/HBM 已清理。cleanup 只在 snapshot 采集无
+错误、设备列表非空且所有目标卡 process 列表为空时写 `npu_quiescence: PASS`。
+缺少 snapshot 或由调用方直接声明 PASS 都不能通过正式 Run Evidence。
 
 ## 宿主机调度容器模式
 

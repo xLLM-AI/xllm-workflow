@@ -102,7 +102,17 @@ fi
 if [ -n "$ATTEMPT_DIR" ] && [ -f "$ATTEMPT_DIR/launch.json" ]; then
   ATTEMPT_ID="${ATTEMPT_ID:-$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["attempt_id"])' "$ATTEMPT_DIR/launch.json")}"
   mapfile -t PORTS < <(python3 -c 'import json,sys; [print(x) for x in json.load(open(sys.argv[1])).get("ports", [])]' "$ATTEMPT_DIR/launch.json")
-  cleanup=(python3 "$SCRIPT_DIR/service_lifecycle.py" cleanup --attempt-dir "$ATTEMPT_DIR" --attempt-id "$ATTEMPT_ID" --pid-file "$PID_FILE" --npu-quiescence "${NPU_QUIESCENCE:-NOT_CHECKED}")
+  if [ -n "${NPU_PHYSICAL_DEVICES:-}" ] && [ -z "${NPU_QUIESCENCE_SNAPSHOT:-}" ]; then
+    NPU_QUIESCENCE_SNAPSHOT="$ATTEMPT_DIR/npu-after.json"
+    snapshot=(python3 "$PROJECT_ROOT/skills/xllm-npu-benchmark/scripts/capture_fairness_snapshot.py" --output "$NPU_QUIESCENCE_SNAPSHOT" --raw-dir "$ATTEMPT_DIR/npu-after-raw")
+    IFS=',' read -ra physical_devices <<< "$NPU_PHYSICAL_DEVICES"
+    for device in "${physical_devices[@]}"; do snapshot+=(--physical-device "$device"); done
+    if ! "${snapshot[@]}"; then
+      echo "WARNING: NPU quiescence snapshot reported collection errors" >&2
+    fi
+  fi
+  cleanup=(python3 "$SCRIPT_DIR/service_lifecycle.py" cleanup --attempt-dir "$ATTEMPT_DIR" --attempt-id "$ATTEMPT_ID" --pid-file "$PID_FILE")
+  if [ -n "${NPU_QUIESCENCE_SNAPSHOT:-}" ]; then cleanup+=(--npu-snapshot "$NPU_QUIESCENCE_SNAPSHOT"); fi
   for port in "${PORTS[@]}"; do cleanup+=(--port "$port"); done
   "${cleanup[@]}"
 else

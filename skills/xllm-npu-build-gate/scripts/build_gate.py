@@ -184,7 +184,7 @@ def collect_submodules(repo: Path, output_path: Path) -> tuple[list[dict[str, st
                 "description": description or "",
             }
         )
-        if state in {"uninitialized", "conflict", "unknown"}:
+        if state in {"uninitialized", "commit_mismatch", "conflict", "unknown"}:
             blockers.append(f"submodule_{state}:{path}")
     if result.returncode != 0:
         blockers.append("submodule_status_failed")

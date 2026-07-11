@@ -26,6 +26,7 @@
 - dirty status、tracked diff + untracked content SHA256。
 - configure 输入文件 SHA256。
 - recursive submodule commits。
+- `git submodule status` 中的 uninitialized、commit mismatch 或 conflict 都是 blocker。
 - xllm_ops source/marker identity。
 - required patch path、SHA256、applied 状态。
 

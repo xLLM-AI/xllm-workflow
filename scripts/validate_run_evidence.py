@@ -222,6 +222,20 @@ def compare_optional_field(
         mismatches.append(f"{label}:{actual!r}!={expected!r}")
 
 
+def compare_required_field(
+    source: dict[str, Any],
+    source_key: str,
+    expected: Any,
+    label: str,
+    mismatches: list[str],
+) -> None:
+    actual = get_path(source, source_key)
+    if actual is None:
+        mismatches.append(f"{label}:missing")
+    elif actual != expected:
+        mismatches.append(f"{label}:{actual!r}!={expected!r}")
+
+
 def validate_build_identity(
     run_root: Path,
     document: dict[str, Any],
@@ -243,11 +257,11 @@ def validate_build_identity(
     expected_commit = get_path(document, "identity.commit")
     expected_binary = get_path(document, "identity.binary_path")
     expected_sha = get_path(document, "identity.binary_sha256")
-    compare_optional_field(provenance, "commit", expected_commit, "build_commit", mismatches)
-    compare_optional_field(
+    compare_required_field(provenance, "commit", expected_commit, "build_commit", mismatches)
+    compare_required_field(
         provenance, "binary.path", expected_binary, "binary_path", mismatches
     )
-    compare_optional_field(
+    compare_required_field(
         provenance, "binary.sha256", expected_sha, "binary_sha256", mismatches
     )
 

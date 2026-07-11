@@ -256,6 +256,17 @@ def test_binary_commit_mismatch_is_inconclusive(tmp_path):
     assert any(item.startswith("build_commit:") for item in verdict(run_root)["mismatches"])
 
 
+def test_missing_build_provenance_identity_is_inconclusive(tmp_path):
+    run_root = tmp_path / "run"
+    make_performance_run(run_root)
+    write_json(run_root / "build/binary-provenance.json", {"binary": {}})
+
+    result = invoke(run_root)
+
+    assert result.returncode == 1
+    assert {"build_commit:missing", "binary_path:missing", "binary_sha256:missing"}.issubset(verdict(run_root)["mismatches"])
+
+
 def test_service_smoke_failure_blocks_even_when_http_ready_passed(tmp_path):
     run_root = tmp_path / "run"
     evidence = make_performance_run(run_root)

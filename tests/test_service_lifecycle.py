@@ -95,15 +95,18 @@ def test_cleanup_preserves_pid_evidence_and_checks_ports(tmp_path, monkeypatch):
     attempt.mkdir()
     pids = attempt / "pids.txt"
     pids.write_text("123 456\n", encoding="utf-8")
+    (attempt / "launch.json").write_text(json.dumps({"visible_devices": [2]}) + "\n", encoding="utf-8")
     monkeypatch.setattr(lifecycle, "process_identity_matches", lambda *_args: False)
     monkeypatch.setattr(lifecycle, "port_is_free", lambda _host, port: port == 18000)
+    snapshot = attempt / "npu-after.json"
+    snapshot.write_text(json.dumps({"collection_errors": [], "devices": [{"physical_id": 2, "processes": []}]}) + "\n", encoding="utf-8")
     args = argparse.Namespace(
         attempt_dir=attempt,
         attempt_id="attempt-001",
         pid_file=pids,
         host="127.0.0.1",
         ports=[18000],
-        npu_quiescence="PASS",
+        npu_snapshot=snapshot,
     )
 
     assert lifecycle.command_cleanup(args) == 0
@@ -113,3 +116,32 @@ def test_cleanup_preserves_pid_evidence_and_checks_ports(tmp_path, monkeypatch):
     args.ports = [18001]
     assert lifecycle.command_cleanup(args) == 1
     assert read(attempt / "cleanup.json")["occupied_ports"] == [18001]
+
+
+def test_cleanup_cannot_pass_without_machine_npu_snapshot(tmp_path, monkeypatch):
+    attempt = tmp_path / "attempt-001"
+    attempt.mkdir()
+    pids = attempt / "pids.txt"
+    pids.write_text("123 456\n", encoding="utf-8")
+    monkeypatch.setattr(lifecycle, "process_identity_matches", lambda *_args: False)
+    monkeypatch.setattr(lifecycle, "port_is_free", lambda *_args: True)
+    args = argparse.Namespace(attempt_dir=attempt, attempt_id="attempt-001", pid_file=pids, host="127.0.0.1", ports=[], npu_snapshot=None)
+
+    assert lifecycle.command_cleanup(args) == 1
+    assert read(attempt / "cleanup.json")["npu_quiescence"] == "NOT_CHECKED"
+
+
+def test_cleanup_snapshot_must_match_launched_devices(tmp_path, monkeypatch):
+    attempt = tmp_path / "attempt-001"
+    attempt.mkdir()
+    pids = attempt / "pids.txt"
+    pids.write_text("123 456\n", encoding="utf-8")
+    (attempt / "launch.json").write_text(json.dumps({"visible_devices": [3]}) + "\n", encoding="utf-8")
+    snapshot = attempt / "npu-after.json"
+    snapshot.write_text(json.dumps({"collection_errors": [], "devices": [{"physical_id": 99, "processes": []}]}) + "\n", encoding="utf-8")
+    monkeypatch.setattr(lifecycle, "process_identity_matches", lambda *_args: False)
+    monkeypatch.setattr(lifecycle, "port_is_free", lambda *_args: True)
+    args = argparse.Namespace(attempt_dir=attempt, attempt_id="attempt-001", pid_file=pids, host="127.0.0.1", ports=[], npu_snapshot=snapshot)
+
+    assert lifecycle.command_cleanup(args) == 1
+    assert read(attempt / "cleanup.json")["npu_quiescence"] == "FAILED"

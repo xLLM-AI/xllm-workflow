@@ -197,10 +197,12 @@ while true; do sleep 0.1; done
     assert json.loads((attempt / "launch.json").read_text())["status"] == "PASS"
     assert (attempt / "command.sh").is_file()
     assert (attempt / "pids.txt").is_file()
+    npu_snapshot = attempt / "npu-after.json"
+    npu_snapshot.write_text(json.dumps({"collection_errors": [], "devices": [{"physical_id": 3, "processes": []}]}) + "\n", encoding="utf-8")
 
     stopped = run_script(
         SERVER_STOPPER,
-        env={**env, "STOP_TIMEOUT": "2", "NPU_QUIESCENCE": "PASS"},
+        env={**env, "STOP_TIMEOUT": "2", "NPU_QUIESCENCE_SNAPSHOT": npu_snapshot},
     )
     assert stopped.returncode == 0, stopped.stderr
     assert (attempt / "pids.txt").is_file()
