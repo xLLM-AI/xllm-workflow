@@ -38,6 +38,7 @@ description: 在昇腾 NPU 上进行 xLLM、vLLM-Ascend、SGLang NPU 等 OpenAI-
 - [`../../reference/io_specs/perf-artifact-schema.md`](../../reference/io_specs/perf-artifact-schema.md)
 - [`../../reference/io_specs/run-manifest-template.md`](../../reference/io_specs/run-manifest-template.md)
 - [`references/npu-fairness-rules.md`](references/npu-fairness-rules.md)
+- [`references/fairness-evidence-schema.md`](references/fairness-evidence-schema.md)
 
 ## 按需加载 References
 
@@ -116,8 +117,15 @@ python scripts/validate_run_evidence.py --run-root <candidate_run_root>
 ```
 
 任一候选不是 `PASS` 时，不进入百分比比较；保留 `INCONCLUSIVE/BLOCKED` 原因。
-Evidence gate 只检查单个 run 的证据闭合，候选之间的设备、顺序、参数和 SLA 公平性
-仍由本 skill 审查。
+随后为候选集合生成 `fairness.json` 并执行：
+
+```bash
+python skills/xllm-npu-benchmark/scripts/benchmark_fairness_gate.py \
+  --comparison-root <comparison_root>
+```
+
+只有 `fairness-verdict.json` 为 `PASS` 且 `claim_scope=formal` 时才进行百分比比较。
+阈值必须由 campaign policy 显式提供；通用 skill 不提供机器相关默认值。
 
 脚本入口：
 

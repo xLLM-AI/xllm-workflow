@@ -15,6 +15,8 @@
   build/binary/service identity 和 artifact 完整性，输出 `PASS/INCONCLUSIVE/BLOCKED`
 - `../skills/xllm-npu-server-manager/scripts/service_lifecycle.py` — 为每次服务 attempt
   生成 launch/ready/smoke/cleanup 生命周期证据
+- `../skills/xllm-npu-benchmark/scripts/benchmark_fairness_gate.py` — 校验候选间身份一致性、
+  环境污染和显式 campaign policy，输出 `fairness-verdict.json`
 
 ## 原则
 
