@@ -100,12 +100,27 @@ runs/               → 执行现场（gitignored）
 
 **`skills/`** 包含过程化 agent skill，每个 SKILL.md 定义了执行流程、证据合约和本地 reference。方式 1 会把它们链接到生成的 `.agents/skills`；方式 2 会把它们链接到所选 agent 的 skills 目录。
 
+### 统一任务和 Run 生命周期
+
+新实验使用 [`experiment.example.yaml`](reference/io_specs/experiment.example.yaml)
+作为单一参数来源，并通过 `scripts/xllm_flow.py` 执行任务注册、preflight、
+run 创建、checkpoint、finalize 和 archive。历史 run 不要求移动；统一入口只约束
+新任务，并通过 `workspace-tasks.json` 记录 task、source、branch、run root 和状态。
+
+`preflight` 检查源码身份、submodule、二进制依赖、模型路径、端口、工具、环境版本和
+baseline 公平性。每次 attempt 由实验参数、代码和输入文件生成 fingerprint，并写入
+hash chain；finalize 会校验证据完整性，生成 checksum、checkpoint、retention 元数据和
+派生 ledger。
+
 ## 3 典型工作流
 
 ![xLLM AI Coding Workflow](docs/assets/xllm-ai-coding-workflow-zh.png)
 
 证据驱动闭环：每次优化从可量化目标出发，采集可比数据，做一条可 review 的改动，
 并留下可复现的 artifact。
+
+端到端 goal 必须先建立粗粒度 loss budget，并按架构算法、pipeline、operator、
+kernel 从大到小筛选；更大层级未量化或未被证据否决前，不进入局部微优化。
 
 ## 4 贡献指南
 

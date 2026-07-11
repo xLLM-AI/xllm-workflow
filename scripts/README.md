@@ -19,6 +19,56 @@
   环境污染和显式 campaign policy，输出 `fairness-verdict.json`
 - `../skills/xllm-npu-benchmark/scripts/capture_fairness_snapshot.py` — 采集 NPU usage、
   health、PID ownership、host load/swap 和原始命令输出，生成规范化环境 snapshot
+- `xllm_flow.py` — 配置驱动的任务注册、preflight、run 生命周期、checkpoint 和归档入口
+
+## 统一实验入口
+
+```bash
+cp reference/io_specs/experiment.example.yaml experiment.yaml
+python scripts/xllm_flow.py preflight --spec experiment.yaml --output runs/example/env
+python scripts/xllm_flow.py run create --spec experiment.yaml
+python scripts/xllm_flow.py attempt add --run-root runs/example-campaign --spec experiment.yaml \
+  --attempt-id baseline-r0 --phase benchmark --status pass --hypothesis baseline \
+  --metrics-json runs/example-campaign/reports/metrics.json \
+  --artifact reports/metrics.json --repeat-index 0
+# 用 baseline/profile 填写 analysis/big-rock-gate.json 后再进入实现
+python scripts/xllm_flow.py gate check --run-root runs/example-campaign
+python scripts/xllm_flow.py checkpoint --run-root runs/example-campaign --phase implementation
+python scripts/xllm_flow.py attempt add --run-root runs/example-campaign --spec experiment.yaml \
+  --attempt-id candidate-r0 --parent-attempt baseline-r0 --phase benchmark --status pass \
+  --hypothesis "selected Big-Rock candidate" --changed-variable code.commit \
+  --metrics-json runs/example-campaign/reports/candidate-comparison.json \
+  --artifact reports/candidate-comparison.json --decision accept --repeat-index 0
+python scripts/xllm_flow.py run validate --run-root runs/example-campaign --status pass
+python scripts/xllm_flow.py run finalize --run-root runs/example-campaign --status pass \
+  --reviewed-by "$USER" --retention-decision keep --kept-path reports/metrics.json
+```
+
+工作区任务注册表可从现有 worktree 幂等生成：
+
+```bash
+python scripts/xllm_flow.py --workspace-root /path/to/workspace registry sync
+python scripts/xllm_flow.py --workspace-root /path/to/workspace registry bind \
+  --task-id task-a --source-path /path/to/shared/checkout --run-root /path/to/run
+python scripts/xllm_flow.py --workspace-root /path/to/workspace workspace check --output /path/to/workspace
+```
+
+注册表同时报告缺失 source、单任务多 source，以及 task ID 与分支 TP 编号不一致。
+`registry bind` 用于明确复用共享 checkout 的任务身份，后续 `registry sync` 会保留绑定、
+alias、owner、priority、objective 和当前 phase。
+
+`run create` 只接受通过 preflight 的 spec；`attempt add` 拒绝重复完成的 fingerprint，
+并通过 hash chain 推进 checkpoint。`run finalize` 校验证据后生成 checksums、final-state
+以及 attempt、optimization、source idea 和 lineage ledgers。`run archive` 仅在结构化
+retention review 完成后允许退役任务。
+
+performance optimization 的 candidate comparison metrics 必须包含同键、非空的数值
+映射 `baseline`、`current` 和 `delta`，且逐项满足 `delta = current - baseline`；candidate
+还必须通过 `--parent-attempt` 关联已通过的 baseline。仅有 baseline 不能 finalize 为
+`pass`。
+
+统一入口负责身份、证据和生命周期；服务启动、EvalScope、profiling 和 compare
+继续调用本目录现有确定性脚本。
 
 ## 原则
 
