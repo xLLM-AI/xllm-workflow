@@ -37,7 +37,7 @@
 
 要求：
 1. 确认 evalscope 已安装（evalscope + evalscope[perf]）。
-2. 更新 scripts/eval_perf.sh 中的 model、url、tokenizer-path，并按用户指定的 parallel 列表和 number 生成对应的 evalscope perf 命令块。
+2. 通过 `MODEL`、`API_URL`、`TOKENIZER_PATH`、`PARALLEL_LIST` 和 `NUMBER` 环境变量配置 perf runner，不手改脚本。
 3. warmup-num 必须大于 0，除非明确是在测冷启动。
 4. 结果输出到 $RUN_ROOT/perf/，保留 evalscope 原始目录，提取 benchmark_summary.json 同步到 metrics.json。
 5. 输出 TTFT、TPOT、TPS、吞吐、P50/P90/P99。
@@ -151,7 +151,7 @@
 ## 场景 8：多模型批量性能评测（不同尺寸、不同 TP）
 
 > 对多个模型循环执行场景 2，每个模型独立拉起服务、测试、停止。
-> 使用 `xllm-npu-batch-perf` skill，支持简写约定，自动推导路径和设备。
+> 使用 `xllm-npu-batch-perf` skill，支持简写约定；路径自动推导，设备由启动前预检固化。
 
 ### 示例 A：极简写法（推荐）
 
@@ -165,13 +165,14 @@
 4. Qwen3.5-4B：单卡，不开MTP
 
 环境：
-- SSH：103
-- xllm容器：cann9-xllm-wh
-- evalscope容器：cann8.5-xllm-wh
-- xllm binary：/export/home/weinan5/wanghao/xllm-cann9/build/xllm/core/server/xllm
-- 权重目录：/export/home/models/
-- MTP导出工具：/export/home/weinan5/wanghao/xllm-cann9/tools/export_mtp.py
-- 参考脚本：/export/home/weinan5/wanghao/vllm_vs010.sh
+- SSH：npu-host
+- xllm容器：xllm-runtime
+- evalscope容器：evalscope-client
+- API URL：http://xllm-runtime:18039/v1
+- xllm binary：/workspace/xllm/build/xllm/core/server/xllm
+- 权重目录：/models/
+- MTP导出工具：/workspace/xllm/tools/export_mtp.py
+- 参考脚本：/workspace/xllm/examples/start_server.sh
 - 端口：18039
 
 测试：input=2048, output=2048, parallel=1,2,4
@@ -187,10 +188,10 @@
 2. DeepSeek-V3：8卡，input=4096, output=512
 
 环境：
-- SSH：103
-- xllm容器：cann9-xllm-wh
-- xllm binary：/export/home/weinan5/wanghao/xllm-cann9/build/xllm/core/server/xllm
-- 权重目录：/export/home/models/
+- SSH：npu-host
+- xllm容器：xllm-runtime
+- xllm binary：/workspace/xllm/build/xllm/core/server/xllm
+- 权重目录：/models/
 - MTP投机步数：5
 - 端口：18039
 
@@ -205,10 +206,10 @@
 配置：2卡，MTP，input=2048, output=2048, parallel=1,2,4
 
 环境：
-- SSH：103
-- xllm容器：cann9-xllm-wh
-- xllm binary：/export/home/weinan5/wanghao/xllm-cann9/build/xllm/core/server/xllm
-- 权重目录：/export/home/models/
+- SSH：npu-host
+- xllm容器：xllm-runtime
+- xllm binary：/workspace/xllm/build/xllm/core/server/xllm
+- 权重目录：/models/
 - 端口：18039
 
 要求：每轮重启服务，计算均值和标准差，偏离>10%标记异常。
@@ -220,8 +221,8 @@ Agent 会自动按以下规则补全：
 
 | 用户写法 | 自动推导 |
 |---|---|
-| `Qwen3.5-27B：2卡` | `model_path=/export/home/models/Qwen3.5-27B`<br>`devices=0,1`<br>`MTP=开启`（默认） |
-| `Qwen3.5-4B：单卡，不开MTP` | `model_path=/export/home/models/Qwen3.5-4B`<br>`devices=0`<br>`MTP=关闭` |
+| `Qwen3.5-27B：2卡` | `model_path=/models/Qwen3.5-27B`<br>`devices=<预检选出的 2 张空闲卡>`<br>`MTP=开启`（默认） |
+| `Qwen3.5-4B：单卡，不开MTP` | `model_path=/models/Qwen3.5-4B`<br>`devices=<预检选出的 1 张空闲卡>`<br>`MTP=关闭` |
 | 省略 `draft_model_path` | 自动设为 `<model_path>-mtp` |
 | 省略 `tokenizer_path` | 自动设为 `<model_path>` |
 | 指定 `参考脚本` | 自动提取启动参数作为默认值 |

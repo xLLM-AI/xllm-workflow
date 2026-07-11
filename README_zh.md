@@ -75,7 +75,7 @@ CLAUDE.md           → Claude Code 引流至 AGENTS.md
 config.example.json → 共享默认配置模板
 config.json         → 本地配置 SSOT，自动生成且不提交
 prompts/            → 可直接复制的中文任务 Prompt 模板
-skills/             → 12 个过程化 agent skill（评测、profiler、benchmark、算子接入…）
+skills/             → 过程化 agent skill（评测、profiler、benchmark、算子接入…）
 reference/
    knowledge/    → 不可变领域规则与硬件参考
    code-style/   → C++/Python/NPU 代码风格约定
@@ -98,7 +98,7 @@ runs/               → 执行现场（gitignored）
 
 **`scripts/`** 是确定性引擎——跨 skill 共用的自动化脚本，LLM 不得修改脚本逻辑，变更需人工审核。
 
-**`skills/`** 包含 12 个过程化 agent skill，每个 SKILL.md 定义了执行流程、证据合约和本地 reference。方式 1 会把它们链接到生成的 `.agents/skills`；方式 2 会把它们链接到所选 agent 的 skills 目录。
+**`skills/`** 包含过程化 agent skill，每个 SKILL.md 定义了执行流程、证据合约和本地 reference。方式 1 会把它们链接到生成的 `.agents/skills`；方式 2 会把它们链接到所选 agent 的 skills 目录。
 
 ## 3 典型工作流
 

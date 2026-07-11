@@ -30,7 +30,7 @@ artifacts。服务启动只作为测评前置条件检查；启动脚本开发�
 ```
 1. 参数对齐（必要时询问用户）
        |
-2. 更新 3 个脚本（run.sh, eval_perf.sh, eval_acc.sh）
+2. 配置并委托 3 个子 skill（server-manager、perf-runner、accuracy-runner）
        |
 3. 检查依赖（evalscope, evalscope[perf]）
        |
@@ -62,70 +62,37 @@ artifacts。服务启动只作为测评前置条件检查；启动脚本开发�
 
 | 参数 | 说明 | 影响 |
 |---|---|---|
-| **API URL** | 服务 endpoint，例如 `http://localhost:18050/v1` | 3 个脚本 |
-| **Model Name** | 模型标识，例如 `Qwen35-27B` | 3 个脚本 |
-| **Model Path** | 主模型权重路径 | `run.sh` 的 `--model`，`eval_perf.sh` 的 `--tokenizer-path` |
-| **Draft Model Path** | 投机解码 draft model 路径 | `run.sh` 的 `--draft_model` |
-| **xLLM Binary Path** | xllm server binary 路径 | `run.sh` 的 `XLLM_BIN` 变量 |
-| **TP (NNODES)** | Tensor parallelism degree | `run.sh` 的 `NNODES` 变量 |
-| **NPU Devices** | 使用的 NPU 设备 ID，例如 `0,1,2,3` | `run.sh` 的 `ASCEND_RT_VISIBLE_DEVICES` 变量 |
-| **Test Mode** | Smoke test 快速验证或 Full test 完整评测 | `eval_perf.sh` 是否跳过 parallel=5，`eval_acc.sh` 的 subset datasets |
+| **API URL** | 服务 endpoint，例如 `http://localhost:18050/v1` | perf/accuracy runner |
+| **Model Name** | 模型标识，例如 `Qwen35-27B` | perf/accuracy runner |
+| **Model Path** | 主模型权重路径 | server-manager 的 `MODEL_PATH`、perf-runner 的 `TOKENIZER_PATH` |
+| **Draft Model Path** | 投机解码 draft model 路径 | server-manager 的 `DRAFT_MODEL_PATH` |
+| **xLLM Binary Path** | xllm server binary 路径 | server-manager 的 `XLLM_BIN` |
+| **TP (NNODES)** | Tensor parallelism degree | server-manager 的 `NNODES` |
+| **NPU Devices** | 使用的 NPU 设备 ID，例如 `0,1,2,3` | server-manager 的 `ASCEND_RT_VISIBLE_DEVICES` |
+| **Test Mode** | Smoke test 快速验证或 Full test 完整评测 | perf workload 与 accuracy-runner 的 `TEST_MODE` |
 
 缺失参数一次性询问。可以基于当前脚本值提供默认建议：
 - API URL: `http://localhost:18050/v1`
 - Model Name: `Qwen35-27B`
 - Model Path: `<model-root>/Qwen35-27B`
 - Draft Model Path: `<model-root>/Qwen35-27B-mtp`
-- xLLM Binary Path: `<project_root>/xllm/build/xllm/core/server/xllm`
+- xLLM Binary Path: `<project_root>/code/xllm/build/xllm/core/server/xllm`
 - TP: `4`
 - NPU Devices: `0,1,2,3`
 - Test Mode: `smoke`（推荐用于快速验证）
 
-## Step 2: 更新脚本
+## Step 2: 配置子 skill
 
-参数收集完后，**原子化**更新 3 个脚本（一次性改完）。
+本 skill 是编排层，不复制或修改 runner 脚本。参数收集完后，通过环境变量依次委托：
 
-### 脚本位置
+1. `xllm-npu-server-manager`：`MODEL_PATH`、`DRAFT_MODEL_PATH`、`XLLM_BIN`、
+   `NNODES`、`ASCEND_RT_VISIBLE_DEVICES`、`START_PORT`、`RUN_ROOT`。
+2. `xllm-npu-perf-runner`：`MODEL`、`API_URL`、`TOKENIZER_PATH`、
+   `PARALLEL_LIST`、`NUMBER`、`WARMUP_NUM`、`OUTPUT_DIR=$RUN_ROOT/perf`。
+3. `xllm-npu-accuracy-runner`：`MODEL_NAME`、`API_URL`、`TEST_MODE`、
+   `RUN_ROOT`、`WORK_DIR=$RUN_ROOT/accuracy`。
 
-无论 skill 是安装给 Codex、Claude Code、opencode，还是直接从仓库 checkout
-加载，脚本路径都要按当前 skill 目录解析。
-
-- **启动**：`scripts/run.sh`
-- **性能**：`scripts/eval_perf.sh`
-- **精度**：`scripts/eval_acc.sh`
-
-### run.sh 更新点
-
-使用当前 agent 的正常文件编辑方式更新 `scripts/run.sh` 中这些字段：
-
-1. `MODEL_PATH="<model_path>"`
-2. `DRAFT_MODEL_PATH="<draft_model_path>"`
-3. `XLLM_BIN="<xllm_binary_path>"`
-4. `NNODES=<tp>`
-5. `ASCEND_RT_VISIBLE_DEVICES=<npu_devices>`
-6. `START_PORT` 应与 API URL 里的端口一致
-
-### eval_perf.sh 更新点
-
-更新 `scripts/eval_perf.sh` 里 **两个** `evalscope perf` 命令块
-（parallel=1 和 parallel=5）：
-
-1. `--model <model_name>`
-2. `--url <api_url>/chat/completions`，注意在 base URL 后追加 `/chat/completions`
-3. `--tokenizer-path <model_path>`
-4. 脚本顶部的 `SMOKE_MODE` 变量：
-   - **Smoke test**：设置 `SMOKE_MODE="true"`，跳过 parallel=5
-   - **Full test**：设置 `SMOKE_MODE="false"`，运行 parallel=1 和 parallel=5
-
-### eval_acc.sh 更新点
-
-更新 `scripts/eval_acc.sh`：
-
-1. `--model <model_name>`
-2. `--api-url <api_url>`
-3. `--datasets` 参数按 Test Mode 选择：
-   - **Smoke test**：`--datasets ceval --dataset-args '{"ceval": {"subset_list": ["computer_network", "operating_system", "marxism"]}}'`
-   - **Full test**：`--datasets ceval`
+所有实际值必须写入 manifest；同一次 run 不得通过手改共享脚本保存配置。
 
 ## Step 3: 检查依赖
 
@@ -211,9 +178,11 @@ if curl -s <api_url>/models > /dev/null 2>&1; then
   echo "xLLM service already running, skipping startup."
 else
   echo "Starting xLLM service..."
-  bash <skill_dir>/scripts/run.sh
+  bash <xllm-npu-server-manager-skill-dir>/scripts/run.sh
 fi
 ```
+
+其中 server-manager 的环境变量按 Step 2 设置，不修改其共享脚本。
 
 如果服务已可用，跳到 Step 7（运行性能测试）。
 
@@ -224,14 +193,20 @@ fi
 轮询服务 health endpoint，直到有响应：
 
 ```bash
+ready=false
 for i in $(seq 1 60); do
   if curl -s <api_url>/models > /dev/null 2>&1; then
     echo "Service is ready!"
+    ready=true
     break
   fi
   echo "Waiting for service... ($i/60)"
   sleep 10
 done
+[ "$ready" = true ] || {
+  bash <xllm-npu-server-manager-skill-dir>/scripts/stop.sh
+  exit 1
+}
 ```
 
 如果 10 分钟内没有启动成功，检查 `log/node_0.log` 并向用户报告错误。
@@ -239,14 +214,13 @@ done
 ## Step 7: 运行性能测试
 
 ```bash
-bash <skill_dir>/scripts/eval_perf.sh
+export OUTPUT_DIR="$RUN_ROOT/perf"
+bash <xllm-npu-perf-runner-skill-dir>/scripts/eval_perf.sh
 ```
 
-性能测试行为取决于 Test Mode：
-- **Smoke mode**（`SMOKE_MODE="true"`）：只运行 parallel=1、number=4，作为单请求延迟 baseline。
-- **Full mode**（`SMOKE_MODE="false"`）：运行两轮：
-  1. **Parallel=1, Number=4**：单请求延迟 baseline。
-  2. **Parallel=5, Number=20**：并发吞吐测试。
+性能 workload 由 `PARALLEL_LIST` 和 `NUMBER` 显式定义。例如 smoke 可使用
+`PARALLEL_LIST=1 NUMBER=4`；full run 可使用 `PARALLEL_LIST=1,5 NUMBER=4`。
+这两个实际值必须写入 manifest，runner 不通过隐藏开关改写 workload。
 
 结果默认输出到 `outputs/`。正式 run 应复制或配置输出到 `$RUN_ROOT/perf/`，
 并保留完整原始 evalscope 目录。查找 `benchmark_summary.json`，把关键字段同步到
@@ -259,7 +233,8 @@ bash <skill_dir>/scripts/eval_perf.sh
 ## Step 8: 运行精度测试
 
 ```bash
-bash <skill_dir>/scripts/eval_acc.sh
+export WORK_DIR="$RUN_ROOT/accuracy"
+bash <xllm-npu-accuracy-runner-skill-dir>/scripts/eval_acc.sh
 ```
 
 **重要**：精度评测要设置较长 timeout，例如 1 小时。精度评测通常明显慢于性能测试。

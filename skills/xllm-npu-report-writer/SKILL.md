@@ -99,7 +99,7 @@ BENCHMARK_URL=https://raw.githubusercontent.com/jd-opensource/xllm/main/docs/ben
 
 ```
 加载 xllm-npu-report-writer，参数：
-  Run Root: /export/home/weinan5/wanghao/runs/20260625_bench_35b
+  Run Root: /workspace/runs/20260625_bench_35b
   template_path: skills/xllm-npu-benchmark/references/report-template.md
   report_type: benchmark
 ```
@@ -108,7 +108,7 @@ BENCHMARK_URL=https://raw.githubusercontent.com/jd-opensource/xllm/main/docs/ben
 
 ```
 加载 xllm-npu-report-writer，参数：
-  Run Root: /export/home/weinan5/wanghao/batch_runs/multi_model_perf_20260623
+  Run Root: /workspace/runs/multi_model_perf_20260623
   template_path: skills/xllm-npu-batch-perf/references/summary-template.md
   report_type: batch-perf
 ```
@@ -159,7 +159,7 @@ Python 解释器在远程容器内执行时自动还原为 UTF-8 中文。
 # -*- coding: utf-8 -*-
 import os
 
-RUN_ROOT = "/export/home/weinan5/wanghao/runs/20260625_bench_35b"
+RUN_ROOT = "/workspace/runs/20260625_bench_35b"
 
 def write_report(path, content):
     os.makedirs(os.path.dirname(path), exist_ok=True)
