@@ -148,3 +148,23 @@ def test_registry_archive_rejects_unreviewed_retention(tmp_path):
         assert False, "expected retention gate"
     except ValueError as exc:
         assert "retention decision" in str(exc)
+
+
+def test_workspace_check_writes_unified_report(tmp_path):
+    source = tmp_path / "worktree" / "tasks" / "task-a" / "eval-lane"
+    make_repo(source)
+    active = tmp_path / "active"
+    active.mkdir()
+    (active / "source").symlink_to(source)
+    (active / "workflow").symlink_to(source)
+    run = tmp_path / "runs" / "run-a"
+    run.mkdir(parents=True)
+    (run / "manifest.md").write_text("# manifest\n", encoding="utf-8")
+    for report in [tmp_path / "BUILD-STORAGE.md", tmp_path / "WORKTREE-STORAGE.md", tmp_path / "runs" / "INDEX.md"]:
+        report.write_text("report\n", encoding="utf-8")
+    output = tmp_path / "preflight"
+    result = flow.workspace_check(tmp_path, tmp_path / "workspace-tasks.json", output)
+    assert result["status"] == "PASS"
+    assert result["runs"] == {"manifested": 1, "total": 1, "unmanifested": 0}
+    assert (output / "workspace-preflight.json").is_file()
+    assert (output / "workspace-preflight.md").is_file()

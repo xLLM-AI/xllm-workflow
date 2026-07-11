@@ -266,6 +266,71 @@ def registry_archive(registry_path: Path, task_id: str) -> None:
     raise ValueError(f"task not found in registry: {task_id}")
 
 
+def workspace_check(workspace: Path, registry_path: Path, output: Path | None) -> dict[str, Any]:
+    registry = registry_sync(workspace, registry_path)
+    issues = []
+    for task in registry.get("tasks", []):
+        for diagnostic in task.get("diagnostics", []):
+            issues.append({"scope": task["task_id"], "code": diagnostic})
+
+    repos = {}
+    for name, path in {
+        "active_source": workspace / "active" / "source",
+        "workflow": workspace / "active" / "workflow",
+    }.items():
+        identity = git_identity(path.resolve()) if path.exists() else {"valid": False, "path": str(path)}
+        repos[name] = identity
+        if not identity.get("valid"):
+            issues.append({"scope": name, "code": "REPO_MISSING"})
+        elif identity.get("dirty"):
+            issues.append({"scope": name, "code": "DIRTY_WORKTREE"})
+
+    runs = workspace / "runs"
+    run_dirs = list(runs.iterdir()) if runs.is_dir() else []
+    run_dirs = [path for path in run_dirs if path.is_dir()]
+    manifested = sum(1 for path in run_dirs if (path / "manifest.md").is_file() or (path / "manifest.json").is_file())
+    coverage = {"manifested": manifested, "total": len(run_dirs), "unmanifested": len(run_dirs) - manifested}
+
+    reports = {}
+    now = datetime.now(timezone.utc).timestamp()
+    for name, path in {
+        "build_storage": workspace / "BUILD-STORAGE.md",
+        "worktree_storage": workspace / "WORKTREE-STORAGE.md",
+        "runs_index": runs / "INDEX.md",
+    }.items():
+        if not path.is_file():
+            reports[name] = {"path": str(path), "status": "MISSING"}
+            issues.append({"scope": name, "code": "REPORT_MISSING"})
+            continue
+        age_hours = round((now - path.stat().st_mtime) / 3600, 1)
+        status = "STALE" if age_hours > 24 else "FRESH"
+        reports[name] = {"path": str(path), "status": status, "age_hours": age_hours}
+        if status == "STALE":
+            issues.append({"scope": name, "code": "REPORT_STALE"})
+
+    verdict = "FAIL" if any(item["code"] == "REPO_MISSING" for item in issues) else "INCONCLUSIVE" if issues else "PASS"
+    result = {
+        "generated_at_utc": utc_now(),
+        "status": verdict,
+        "registry": {"task_count": len(registry.get("tasks", [])), "diagnostic_count": registry.get("diagnostic_count", 0)},
+        "runs": coverage,
+        "repos": repos,
+        "reports": reports,
+        "issues": issues,
+    }
+    if output:
+        output.mkdir(parents=True, exist_ok=True)
+        write_json(output / "workspace-preflight.json", result)
+        lines = [
+            "# Workspace Preflight", "", f"- status: **{verdict}**",
+            f"- tasks: **{result['registry']['task_count']}**",
+            f"- manifest coverage: **{manifested}/{len(run_dirs)}**", "", "## Issues", "",
+        ]
+        lines += [f"- `{item['code']}`: {item['scope']}" for item in issues] or ["- none"]
+        (output / "workspace-preflight.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return result
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="xllm-flow")
     parser.add_argument("--workspace-root", type=Path, default=Path(os.environ.get("XLLM_WORKSPACE_ROOT", Path.cwd())))
@@ -275,6 +340,10 @@ def build_parser() -> argparse.ArgumentParser:
     registry_sub = registry.add_subparsers(dest="action", required=True)
     registry_sub.add_parser("sync")
     registry_sub.add_parser("list")
+    workspace_command = commands.add_parser("workspace")
+    workspace_sub = workspace_command.add_subparsers(dest="action", required=True)
+    workspace_check_parser = workspace_sub.add_parser("check")
+    workspace_check_parser.add_argument("--output", type=Path)
     pf = commands.add_parser("preflight")
     pf.add_argument("--spec", type=Path, required=True)
     pf.add_argument("--output", type=Path)
@@ -306,6 +375,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "registry":
             data = registry_sync(workspace, registry_path) if args.action == "sync" else read_json(registry_path, {"tasks": []})
             print(json.dumps(data, ensure_ascii=False, indent=2))
+        elif args.command == "workspace" and args.action == "check":
+            result = workspace_check(workspace, registry_path, args.output)
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return 2 if result["status"] == "FAIL" else 0
         elif args.command == "preflight":
             result = preflight(args.spec, args.output)
             print(json.dumps(result, ensure_ascii=False, indent=2))

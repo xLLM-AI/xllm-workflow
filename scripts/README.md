@@ -27,6 +27,7 @@ python scripts/xllm_flow.py run finalize --run-root runs/example-campaign --stat
 
 ```bash
 python scripts/xllm_flow.py --workspace-root /path/to/workspace registry sync
+python scripts/xllm_flow.py --workspace-root /path/to/workspace workspace check --output /path/to/workspace
 ```
 
 注册表同时报告缺失 source、单任务多 source，以及 task ID 与分支 TP 编号不一致。
