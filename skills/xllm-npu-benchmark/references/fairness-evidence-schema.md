@@ -2,6 +2,8 @@
 
 `fairness.json` describes a comparison, not an individual run. Each candidate must first pass
 Run Evidence Gate with `claim_scope=formal`.
+The verdict's resolved `run_root` must equal the candidate's resolved `run_root`; placing a
+verdict file under the candidate directory is not sufficient identity proof.
 
 ```json
 {
@@ -63,9 +65,26 @@ Each normalized snapshot contains:
     "swap_used_bytes": 0,
     "profiling_active": false,
     "build_active": false
-  }
+  },
+  "collection_errors": [],
+  "raw_dir": "<preserved raw command output directory>"
 }
 ```
+
+Generate snapshots with `capture_fairness_snapshot.py`. Use `--attempt-pid-file` after service
+startup so NPU processes are matched by PID plus `/proc` start time; PID equality alone is not
+ownership proof. The collector preserves raw `npu-smi` output next to the normalized JSON.
+
+```bash
+python skills/xllm-npu-benchmark/scripts/capture_fairness_snapshot.py \
+  --output "$RUN_ROOT/env/before.json" \
+  --raw-dir "$RUN_ROOT/env/raw/before" \
+  --physical-device <id>
+```
+
+Capture `before` prior to service launch, one or more `idle` snapshots after ready/smoke, and
+`after` after the benchmark. A parser or command failure is recorded in `collection_errors` and
+must block formal comparison rather than being replaced by a guessed value.
 
 The workflow intentionally provides no default utilization or load thresholds. Hardware,
 deployment mode, and campaign purpose determine acceptable values. The campaign must declare

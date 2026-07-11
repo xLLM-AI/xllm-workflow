@@ -46,3 +46,7 @@ pgrep -af 'xllm|vllm|sglang|python|evalscope|msprof' | tee "$RUN_ROOT/env/proces
 将采集结果归一化为
 [`fairness-evidence-schema.md`](fairness-evidence-schema.md)，再运行可执行公平性门禁。
 具体模型、PR、日期和观测数值只进入对应 run ledger 或模型历史，不进入通用判定规则。
+
+优先使用 `../scripts/capture_fairness_snapshot.py` 同时保存 raw 和 normalized artifacts。
+仅在采集器不支持当前 `npu-smi` 格式时保留上述手工命令作为诊断手段；不得手工填写
+缺失的 health、usage 或 PID ownership 字段。

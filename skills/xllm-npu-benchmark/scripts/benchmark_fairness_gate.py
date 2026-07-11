@@ -77,6 +77,7 @@ def validate_device_snapshot(
     candidate: str,
     label: str,
     snapshot: Any,
+    run_root: Path,
     expected_ids: list[Any],
     blockers: list[str],
     findings: list[str],
@@ -84,6 +85,14 @@ def validate_device_snapshot(
     if not isinstance(snapshot, dict) or not isinstance(snapshot.get("devices"), list):
         blockers.append(f"{candidate}:{label}:missing_devices")
         return
+    if not isinstance(snapshot.get("collection_errors"), list):
+        blockers.append(f"{candidate}:{label}:missing_collection_errors")
+    elif snapshot.get("collection_errors"):
+        blockers.append(f"{candidate}:{label}:snapshot_collection_errors")
+    if missing(snapshot.get("raw_dir")):
+        blockers.append(f"{candidate}:{label}:missing_raw_dir")
+    elif not resolve(run_root, snapshot["raw_dir"]).is_dir():
+        blockers.append(f"{candidate}:{label}:missing_raw_artifacts")
     devices = snapshot["devices"]
     observed_ids = [device.get("physical_id") for device in devices if isinstance(device, dict)]
     if observed_ids != expected_ids:
@@ -133,6 +142,9 @@ def validate_candidate(
         blockers.append(f"{name}:evidence_verdict_outside_run_root")
         return
     evidence = load_json(evidence_path)
+    evidence_run_root = evidence.get("run_root")
+    if not isinstance(evidence_run_root, str) or Path(evidence_run_root).resolve() != run_root:
+        blockers.append(f"{name}:evidence_verdict_run_root_mismatch")
     if evidence.get("status") != "PASS" or evidence.get("claim_scope") != "formal":
         findings.append(f"{name}:run_evidence_not_formal_pass")
     if get(candidate, "identity.profiling_attached") is not False:
@@ -150,13 +162,13 @@ def validate_candidate(
     before = get(candidate, "environment.before")
     after = get(candidate, "environment.after")
     idle_samples = get(candidate, "environment.idle_samples")
-    validate_device_snapshot(name, "before", before, expected_ids, blockers, findings)
-    validate_device_snapshot(name, "after", after, expected_ids, blockers, findings)
+    validate_device_snapshot(name, "before", before, run_root, expected_ids, blockers, findings)
+    validate_device_snapshot(name, "after", after, run_root, expected_ids, blockers, findings)
     if not isinstance(idle_samples, list) or len(idle_samples) < policy["min_idle_samples"]:
         blockers.append(f"{name}:insufficient_idle_samples")
         idle_samples = []
     for index, sample in enumerate(idle_samples):
-        validate_device_snapshot(name, f"idle_{index}", sample, expected_ids, blockers, findings)
+        validate_device_snapshot(name, f"idle_{index}", sample, run_root, expected_ids, blockers, findings)
         for device in sample.get("devices", []) if isinstance(sample, dict) else []:
             usage = device.get("aicore_usage_pct") if isinstance(device, dict) else None
             if not isinstance(usage, (int, float)):

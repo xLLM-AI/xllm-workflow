@@ -17,6 +17,8 @@
   生成 launch/ready/smoke/cleanup 生命周期证据
 - `../skills/xllm-npu-benchmark/scripts/benchmark_fairness_gate.py` — 校验候选间身份一致性、
   环境污染和显式 campaign policy，输出 `fairness-verdict.json`
+- `../skills/xllm-npu-benchmark/scripts/capture_fairness_snapshot.py` — 采集 NPU usage、
+  health、PID ownership、host load/swap 和原始命令输出，生成规范化环境 snapshot
 
 ## 原则
 

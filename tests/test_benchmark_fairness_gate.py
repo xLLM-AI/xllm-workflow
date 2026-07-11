@@ -16,6 +16,8 @@ def write_json(path, value):
 
 def snapshot(*, hbm=0, aicore=0, processes=None, load1=1.0, swap=0):
     return {
+        "collection_errors": [],
+        "raw_dir": "env/raw/snapshot",
         "devices": [
             {
                 "physical_id": 2,
@@ -36,7 +38,8 @@ def snapshot(*, hbm=0, aicore=0, processes=None, load1=1.0, swap=0):
 
 def candidate(root, name):
     run_root = root / name
-    write_json(run_root / "evidence-verdict.json", {"status": "PASS", "claim_scope": "formal"})
+    write_json(run_root / "evidence-verdict.json", {"status": "PASS", "claim_scope": "formal", "run_root": str(run_root.resolve())})
+    (run_root / "env/raw/snapshot").mkdir(parents=True)
     return {
         "name": name,
         "run_root": name,
@@ -175,13 +178,24 @@ def test_candidate_workload_mismatch_is_inconclusive(tmp_path):
 
 def test_nonformal_run_evidence_is_inconclusive(tmp_path):
     document = comparison(tmp_path)
-    write_json(tmp_path / "after/evidence-verdict.json", {"status": "PASS", "claim_scope": "smoke"})
+    write_json(tmp_path / "after/evidence-verdict.json", {"status": "PASS", "claim_scope": "smoke", "run_root": str((tmp_path / "after").resolve())})
     write_json(tmp_path / "fairness.json", document)
 
     result = invoke(tmp_path)
 
     assert result.returncode == 1
     assert "after:run_evidence_not_formal_pass" in verdict(tmp_path)["contamination_findings"]
+
+
+def test_evidence_verdict_must_belong_to_candidate_run_root(tmp_path):
+    document = comparison(tmp_path)
+    write_json(tmp_path / "after/evidence-verdict.json", {"status": "PASS", "claim_scope": "formal", "run_root": str((tmp_path / "before").resolve())})
+    write_json(tmp_path / "fairness.json", document)
+
+    result = invoke(tmp_path)
+
+    assert result.returncode == 2
+    assert "after:evidence_verdict_run_root_mismatch" in verdict(tmp_path)["blockers"]
 
 
 def test_missing_idle_samples_blocks_comparison(tmp_path):

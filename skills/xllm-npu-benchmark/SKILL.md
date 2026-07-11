@@ -76,6 +76,19 @@ description: 在昇腾 NPU 上进行 xLLM、vLLM-Ascend、SGLang NPU 等 OpenAI-
 - CPU load、memory、swap；
 - CANN、Driver、torch_npu、框架 commit/package、容器镜像。
 
+使用采集器生成规范化 snapshot，同时保留原始命令输出：
+
+```bash
+python skills/xllm-npu-benchmark/scripts/capture_fairness_snapshot.py \
+  --output "$RUN_ROOT/env/<phase>.json" \
+  --raw-dir "$RUN_ROOT/env/raw/<phase>" \
+  --physical-device <id> \
+  [--attempt-pid-file "$RUN_ROOT/service/$ATTEMPT_ID/pids.txt"]
+```
+
+`before` 阶段不传 PID manifest；服务启动后的 idle/after 阶段传入同一 attempt 的 PID
+manifest。采集失败或字段无法解析时保留 raw artifact，并停止正式比较，不手工补猜值。
+
 如果目标卡有未知 HBM 占用、`ps` 查不到的 NPU PID、服务空闲态 AICore 不稳定接近 0，结论标记为 `INCONCLUSIVE` 或 `smoke/debug`，先清理或换卡重跑。
 
 ### 3. 规范 workload
