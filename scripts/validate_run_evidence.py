@@ -287,6 +287,8 @@ def validate_service(
             artifact = load_json(resolve_artifact(run_root, cleanup_value))
             if str(artifact.get("status", "")).upper() != "PASS":
                 mismatches.append("service_cleanup_artifact_not_passed")
+            if str(artifact.get("npu_quiescence", "")).upper() != "PASS":
+                mismatches.append("service_cleanup_npu_quiescence_not_passed")
             compare_optional_field(
                 artifact,
                 "attempt_id",

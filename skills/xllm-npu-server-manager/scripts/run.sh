@@ -100,13 +100,32 @@ ENABLE_GRAPH="${ENABLE_GRAPH:-true}"
 ENABLE_SHM="${ENABLE_SHM:-true}"
 
 RUN_ROOT="${RUN_ROOT:-}"
-LOG_DIR="${LOG_DIR:-${RUN_ROOT:+$RUN_ROOT/service/log}}"
+LEGACY_LAYOUT=false
+if { [ -n "${LOG_DIR+x}" ] || [ -n "${PID_FILE+x}" ] || [ -n "${COMMAND_FILE+x}" ]; } && [ -z "${ATTEMPT_ID:-}" ] && [ -z "${ATTEMPT_DIR:-}" ]; then
+  LEGACY_LAYOUT=true
+fi
+if [ "$LEGACY_LAYOUT" = false ]; then
+  ATTEMPT_ID="${ATTEMPT_ID:-attempt-$(date -u +%Y%m%dT%H%M%SZ)-$$}"
+  ATTEMPT_DIR="${ATTEMPT_DIR:-${RUN_ROOT:+$RUN_ROOT/service/$ATTEMPT_ID}}"
+else
+  ATTEMPT_ID=""
+  ATTEMPT_DIR=""
+fi
+LOG_DIR="${LOG_DIR:-${ATTEMPT_DIR:-${RUN_ROOT:+$RUN_ROOT/service/log}}}"
 LOG_DIR="${LOG_DIR:-$PROJECT_ROOT/log}"
-PID_FILE="${PID_FILE:-${RUN_ROOT:+$RUN_ROOT/service/xllm.pids}}"
+PID_FILE="${PID_FILE:-${ATTEMPT_DIR:+$ATTEMPT_DIR/pids.txt}}"
 PID_FILE="${PID_FILE:-$LOG_DIR/xllm.pids}"
-mkdir -p "$LOG_DIR" "$(dirname "$PID_FILE")"
-rm -f "$LOG_DIR"/node_*.log
+COMMAND_FILE="${COMMAND_FILE:-${ATTEMPT_DIR:+$ATTEMPT_DIR/command.sh}}"
+COMMAND_FILE="${COMMAND_FILE:-$LOG_DIR/command.sh}"
+if [ -n "$ATTEMPT_DIR" ] && [ -e "$ATTEMPT_DIR" ]; then
+  echo "ERROR: immutable service attempt already exists: $ATTEMPT_DIR" >&2
+  exit 2
+fi
+mkdir -p "$LOG_DIR" "$(dirname "$PID_FILE")" "$(dirname "$COMMAND_FILE")"
 : > "$PID_FILE"
+: > "$COMMAND_FILE"
+chmod +x "$COMMAND_FILE"
+printf '#!/bin/bash\nset -euo pipefail\n' >> "$COMMAND_FILE"
 
 started_pids=()
 read_start_time() {
@@ -162,6 +181,10 @@ for ((i = 0; i < NNODES; i++)); do
     )
   fi
 
+  printf 'ASCEND_RT_VISIBLE_DEVICES=%q nohup ' "$ASCEND_RT_VISIBLE_DEVICES" >> "$COMMAND_FILE"
+  printf '%q ' "${cmd[@]}" >> "$COMMAND_FILE"
+  printf '>> %q 2>&1 &\n' "$log_file" >> "$COMMAND_FILE"
+
   nohup "${cmd[@]}" >> "$log_file" 2>&1 &
   pid=$!
   started_pids+=("$pid")
@@ -173,4 +196,24 @@ for ((i = 0; i < NNODES; i++)); do
 done
 
 trap - ERR INT TERM
+if [ -n "$ATTEMPT_DIR" ]; then
+  api_url="${API_URL:-http://127.0.0.1:$START_PORT/v1}"
+  lifecycle=(
+    python3 "$SCRIPT_DIR/service_lifecycle.py" launch
+    --attempt-dir "$ATTEMPT_DIR"
+    --attempt-id "$ATTEMPT_ID"
+    --api-url "$api_url"
+    --model "$MODEL_PATH"
+    --command-file "$COMMAND_FILE"
+    --pid-file "$PID_FILE"
+  )
+  for ((i = 0; i < NNODES; i++)); do
+    lifecycle+=(--log "$LOG_DIR/node_$i.log" --port "$((START_PORT + i))")
+  done
+  for device in "${VISIBLE_DEVICES[@]}"; do
+    lifecycle+=(--visible-device "$device")
+  done
+  "${lifecycle[@]}"
+  printf '%s\n' "$ATTEMPT_ID" > "$RUN_ROOT/service/current-attempt"
+fi
 printf 'Started %s xLLM rank(s); PID file: %s\n' "$NNODES" "$PID_FILE"

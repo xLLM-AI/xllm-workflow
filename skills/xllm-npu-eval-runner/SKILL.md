@@ -280,6 +280,10 @@ python scripts/validate_run_evidence.py --run-root "$RUN_ROOT"
 smoke/debug；`BLOCKED` 必须停止后续结论生成。具体模型或某次 incident 的特判不得写入
 通用 evidence contract。
 
+服务必须由 `xllm-npu-server-manager` 生成不可覆盖的 attempt artifacts。不要用手工
+`curl /models` 代替模型身份 ready gate 或真实生成 smoke gate；cleanup 未证明
+`npu_quiescence=PASS` 时不得给 formal claim。
+
 ## 可选：从 GitHub 获取 Baseline
 
 从 GitHub 仓库获取 benchmark baseline 数据：

@@ -13,6 +13,8 @@
 - `validate_framework_cli.py` — 验证框架 CLI 参数合法性
 - `validate_run_evidence.py` — 校验 performance/accuracy/profiling 的机器可读证据、
   build/binary/service identity 和 artifact 完整性，输出 `PASS/INCONCLUSIVE/BLOCKED`
+- `../skills/xllm-npu-server-manager/scripts/service_lifecycle.py` — 为每次服务 attempt
+  生成 launch/ready/smoke/cleanup 生命周期证据
 
 ## 原则
 

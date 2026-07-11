@@ -3,10 +3,21 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -P -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd -P)"
+PID_FILE_EXPLICIT=false
+[ -z "${PID_FILE+x}" ] || PID_FILE_EXPLICIT=true
 RUN_ROOT="${RUN_ROOT:-}"
-LOG_DIR="${LOG_DIR:-${RUN_ROOT:+$RUN_ROOT/service/log}}"
+ATTEMPT_ID="${ATTEMPT_ID:-}"
+if [ "$PID_FILE_EXPLICIT" = false ] && [ -z "$ATTEMPT_ID" ] && [ -n "$RUN_ROOT" ] && [ -f "$RUN_ROOT/service/current-attempt" ]; then
+  ATTEMPT_ID="$(< "$RUN_ROOT/service/current-attempt")"
+fi
+if [ "$PID_FILE_EXPLICIT" = true ] && [ -z "${ATTEMPT_DIR:-}" ]; then
+  ATTEMPT_DIR=""
+else
+  ATTEMPT_DIR="${ATTEMPT_DIR:-${ATTEMPT_ID:+$RUN_ROOT/service/$ATTEMPT_ID}}"
+fi
+LOG_DIR="${LOG_DIR:-${ATTEMPT_DIR:-${RUN_ROOT:+$RUN_ROOT/service/log}}}"
 LOG_DIR="${LOG_DIR:-$PROJECT_ROOT/log}"
-PID_FILE="${PID_FILE:-${RUN_ROOT:+$RUN_ROOT/service/xllm.pids}}"
+PID_FILE="${PID_FILE:-${ATTEMPT_DIR:+$ATTEMPT_DIR/pids.txt}}"
 PID_FILE="${PID_FILE:-$LOG_DIR/xllm.pids}"
 STOP_TIMEOUT="${STOP_TIMEOUT:-30}"
 
@@ -84,5 +95,17 @@ for pid in "${pids[@]}"; do
     kill -KILL "$pid" 2>/dev/null || true
   fi
 done
-rm -f "$PID_FILE"
+
+if [ -z "$ATTEMPT_DIR" ] && [ "$(basename "$PID_FILE")" = pids.txt ]; then
+  ATTEMPT_DIR="$(dirname "$PID_FILE")"
+fi
+if [ -n "$ATTEMPT_DIR" ] && [ -f "$ATTEMPT_DIR/launch.json" ]; then
+  ATTEMPT_ID="${ATTEMPT_ID:-$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["attempt_id"])' "$ATTEMPT_DIR/launch.json")}"
+  mapfile -t PORTS < <(python3 -c 'import json,sys; [print(x) for x in json.load(open(sys.argv[1])).get("ports", [])]' "$ATTEMPT_DIR/launch.json")
+  cleanup=(python3 "$SCRIPT_DIR/service_lifecycle.py" cleanup --attempt-dir "$ATTEMPT_DIR" --attempt-id "$ATTEMPT_ID" --pid-file "$PID_FILE" --npu-quiescence "${NPU_QUIESCENCE:-NOT_CHECKED}")
+  for port in "${PORTS[@]}"; do cleanup+=(--port "$port"); done
+  "${cleanup[@]}"
+else
+  rm -f "$PID_FILE"
+fi
 printf 'Stopped %s xLLM rank(s).\n' "${#pids[@]}"

@@ -170,6 +170,45 @@ while true; do sleep 0.1; done
     assert not pid_file.exists()
 
 
+def test_server_manager_preserves_immutable_attempt_artifacts(tmp_path):
+    fake_xllm = write_executable(
+        tmp_path / "fake-xllm",
+        """#!/bin/bash
+trap 'exit 0' TERM INT
+while true; do sleep 0.1; done
+""",
+    )
+    run_root = tmp_path / "run"
+    env = {
+        "MODEL_PATH": "/models/test",
+        "NNODES": "1",
+        "ASCEND_RT_VISIBLE_DEVICES": "3",
+        "XLLM_BIN": fake_xllm,
+        "RUN_ROOT": run_root,
+        "PYTORCH_INSTALL_PATH": tmp_path / "torch",
+        "PYTORCH_NPU_INSTALL_PATH": tmp_path / "torch_npu",
+        "SOURCE_VENDOR_ENV": "false",
+    }
+
+    started = run_script(SERVER_RUNNER, env=env)
+    assert started.returncode == 0, started.stderr
+    attempt_id = (run_root / "service/current-attempt").read_text().strip()
+    attempt = run_root / "service" / attempt_id
+    assert json.loads((attempt / "launch.json").read_text())["status"] == "PASS"
+    assert (attempt / "command.sh").is_file()
+    assert (attempt / "pids.txt").is_file()
+
+    stopped = run_script(
+        SERVER_STOPPER,
+        env={**env, "STOP_TIMEOUT": "2", "NPU_QUIESCENCE": "PASS"},
+    )
+    assert stopped.returncode == 0, stopped.stderr
+    assert (attempt / "pids.txt").is_file()
+    cleanup = json.loads((attempt / "cleanup.json").read_text())
+    assert cleanup["status"] == "PASS"
+    assert cleanup["npu_quiescence"] == "PASS"
+
+
 def test_server_stopper_skips_reused_or_stale_pid(tmp_path):
     sleeper = subprocess.Popen(["sleep", "10"])
     pid_file = tmp_path / "xllm.pids"

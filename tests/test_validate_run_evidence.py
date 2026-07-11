@@ -45,8 +45,12 @@ def base_evidence(run_root, evidence_type):
     service_root = run_root / "service" / attempt
     for name in ("command.sh", "pids.txt", "node_0.log"):
         write_file(service_root / name)
-    for name in ("ready.json", "smoke.json", "cleanup.json"):
+    for name in ("ready.json", "smoke.json"):
         write_json(service_root / name, {"status": "PASS", "attempt_id": attempt})
+    write_json(
+        service_root / "cleanup.json",
+        {"status": "PASS", "attempt_id": attempt, "npu_quiescence": "PASS"},
+    )
     write_file(run_root / "env/before/npu-smi.txt")
     write_file(run_root / "env/after/npu-smi.txt")
     write_json(run_root / "build/verdict.json", {"status": "PASS", "binary_ready": True})
@@ -290,6 +294,18 @@ def test_cleanup_failure_makes_completed_run_inconclusive(tmp_path):
 
     assert result.returncode == 1
     assert "service_cleanup_artifact_not_passed" in verdict(run_root)["mismatches"]
+
+
+def test_cleanup_without_npu_quiescence_is_inconclusive(tmp_path):
+    run_root = tmp_path / "run"
+    evidence = make_performance_run(run_root)
+    cleanup = run_root / evidence["service"]["cleanup"]["artifact"]
+    write_json(cleanup, {"status": "PASS", "attempt_id": "attempt-001", "npu_quiescence": "NOT_CHECKED"})
+
+    result = invoke(run_root)
+
+    assert result.returncode == 1
+    assert "service_cleanup_npu_quiescence_not_passed" in verdict(run_root)["mismatches"]
 
 
 def test_accuracy_requires_prompt_and_dataset_fingerprints(tmp_path):
