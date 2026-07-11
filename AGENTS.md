@@ -72,6 +72,13 @@ when their adapters and runbooks are added.
    - End every optimization or bug-fix loop by recording reusable lessons in a
      ledger, reference, or model PR history.
 
+9. **Use The Unified Lifecycle For New Work**
+   - Define new experiments from `reference/io_specs/experiment.example.yaml`.
+   - Run `scripts/xllm_flow.py preflight` before execution.
+   - Create and resume run roots through `run create` and `checkpoint`.
+   - Finish with `run finalize`; archive only after evidence and retention
+     decisions are recorded.
+
 ## 3. Task → Skill Routing
 
 | Task | Start With |

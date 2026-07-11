@@ -11,6 +11,26 @@
 - `collect_evalscope_results.py` — 收集并标准化 evalscope 评测结果
 - `compare_npu_benchmark.py` — 跨框架 NPU 性能对比
 - `validate_framework_cli.py` — 验证框架 CLI 参数合法性
+- `xllm_flow.py` — 配置驱动的任务注册、preflight、run 生命周期、checkpoint 和归档入口
+
+## 统一实验入口
+
+```bash
+cp reference/io_specs/experiment.example.yaml experiment.yaml
+python scripts/xllm_flow.py preflight --spec experiment.yaml --output runs/example/env
+python scripts/xllm_flow.py run create --spec experiment.yaml
+python scripts/xllm_flow.py checkpoint --run-root runs/example-campaign --phase benchmark
+python scripts/xllm_flow.py run finalize --run-root runs/example-campaign --status pass --retention-reviewed
+```
+
+工作区任务注册表可从现有 worktree 幂等生成：
+
+```bash
+python scripts/xllm_flow.py --workspace-root /path/to/workspace registry sync
+```
+
+统一入口负责身份、证据和生命周期；服务启动、EvalScope、profiling 和 compare
+继续调用本目录现有确定性脚本。
 
 ## 原则
 

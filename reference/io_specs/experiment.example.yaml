@@ -1,0 +1,30 @@
+version: 1
+identity:
+  task_id: example-task
+  purpose: compare one candidate against a fixed baseline
+  level: quick
+  run_root: runs/example-campaign
+code:
+  framework: xllm
+  repo: code/xllm
+  commit: ""
+model:
+  name: example-model
+  path: /models/example-model
+  tokenizer: /models/example-model
+service:
+  tensor_parallel: 2
+  devices: [0, 1]
+  flags: {}
+workload:
+  dataset: random
+  input_tokens: 2000
+  output_tokens: 200
+  parallel: 1
+  number: 5
+  warmup: 2
+  sampling:
+    temperature: 0
+comparison:
+  baseline_run_id: ""
+  changed_variables: []

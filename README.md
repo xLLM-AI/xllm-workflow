@@ -105,6 +105,15 @@ runs/               → Execution workspace (gitignored)
 
 **`skills/`** contains 12 procedural agent skills, each with a SKILL.md defining the execution workflow, evidence contracts, and local references. Mode 1 links them into generated `.agents/skills`; Mode 2 links them into the selected agent skills directory.
 
+### Unified Task And Run Lifecycle
+
+New experiments use
+[`experiment.example.yaml`](reference/io_specs/experiment.example.yaml) as the
+single parameter source and `scripts/xllm_flow.py` for task registration,
+preflight, run creation, checkpoints, finalization, and archival. Existing run
+directories do not move; `workspace-tasks.json` records task, source, branch,
+run root, and lifecycle state for new work.
+
 ## 3 Typical Workflow
 
 ![xLLM AI Coding Workflow](docs/assets/xllm-ai-coding-workflow-en.png)

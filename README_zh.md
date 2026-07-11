@@ -100,6 +100,13 @@ runs/               → 执行现场（gitignored）
 
 **`skills/`** 包含 12 个过程化 agent skill，每个 SKILL.md 定义了执行流程、证据合约和本地 reference。方式 1 会把它们链接到生成的 `.agents/skills`；方式 2 会把它们链接到所选 agent 的 skills 目录。
 
+### 统一任务和 Run 生命周期
+
+新实验使用 [`experiment.example.yaml`](reference/io_specs/experiment.example.yaml)
+作为单一参数来源，并通过 `scripts/xllm_flow.py` 执行任务注册、preflight、
+run 创建、checkpoint、finalize 和 archive。历史 run 不要求移动；统一入口只约束
+新任务，并通过 `workspace-tasks.json` 记录 task、source、branch、run root 和状态。
+
 ## 3 典型工作流
 
 ![xLLM AI Coding Workflow](docs/assets/xllm-ai-coding-workflow-zh.png)
