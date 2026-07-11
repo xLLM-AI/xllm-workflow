@@ -24,7 +24,7 @@ Host ea-notebook
     ProxyCommand C:\Users\xxx\software\wsCli -a lfga-cluster.easyalgo.jd.com -t <token>
 
 Host 103
-    HostName 11.87.191.103
+    HostName npu.example.com
     User weinan5
     ProxyJump ea-notebook
 ```
@@ -36,7 +36,7 @@ Host 103
 Windows 下 SSH 不支持交互式密码输入，需要通过 `SSH_ASKPASS` 环境变量指定一个脚本自动提供密码：
 
 ```powershell
-Set-Content -Path "C:\Users\ext.gaopengju1\AppData\Local\Temp\opencode\askpass.bat" -Value "@echo off`necho <password>"
+Set-Content -Path "C:\Users\example.user\AppData\Local\Temp\opencode\askpass.bat" -Value "@echo off`necho <password>"
 ```
 
 **注意**：密码不要硬编码到 skill 或脚本中，仅在运行时从用户 prompt 获取并写入临时文件。
@@ -46,7 +46,7 @@ Set-Content -Path "C:\Users\ext.gaopengju1\AppData\Local\Temp\opencode\askpass.b
 每次执行 SSH 命令前，必须设置以下三个环境变量：
 
 ```powershell
-$env:SSH_ASKPASS = "C:\Users\ext.gaopengju1\AppData\Local\Temp\opencode\askpass.bat"
+$env:SSH_ASKPASS = "C:\Users\example.user\AppData\Local\Temp\opencode\askpass.bat"
 $env:SSH_ASKPASS_REQUIRE = "force"
 $env:DISPLAY = "dummy:0"
 ```

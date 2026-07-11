@@ -1,16 +1,17 @@
 {
   "batch_name": "qwen_series_perf_20260622",
   "infra": {
-    "ssh_host": "103",
-    "xllm_container": "cann9-xllm-wh",
-    "evalscope_container": "cann8.5-xllm-wh",
-    "reference_script": "/export/home/weinan5/wanghao/vllm_vs010.sh",
-    "mtp_export_tool": "/export/home/weinan5/wanghao/xllm-cann9/tools/export_mtp.py"
+    "ssh_host": "npu-host",
+    "xllm_container": "xllm-runtime",
+    "evalscope_container": "evalscope-client",
+    "api_url": "http://xllm-runtime:18039/v1",
+    "reference_script": "/workspace/xllm/examples/start_server.sh",
+    "mtp_export_tool": "/workspace/xllm/tools/export_mtp.py"
   },
   "common": {
-    "xllm_bin": "/export/home/weinan5/wanghao/xllm-cann9/build/xllm/core/server/xllm",
+    "xllm_bin": "/workspace/xllm/build/xllm/core/server/xllm",
     "start_port": 18039,
-    "model_dir": "/export/home/models/",
+    "model_dir": "/models/",
     "parallel_list": "1,2,4",
     "number": 4,
     "warmup_num": 2,

@@ -32,7 +32,7 @@ description: xLLM NPU 批量性能评测编排器。对多个模型（不同尺�
 **唯一例外**：用户在 prompt 中**显式指定**了某个参数的值，此时以用户指定的值为准。
 Agent 不得以"性能更好"、"避免 OOM"等理由自行调整这些参数。
 
-### 启动前检查空卡
+### 启动前检查空卡并显式固化设备列表
 
 启动服务前必须通过 `npu-smi info` 检查 NPU 设备状态，**只使用无进程占用的空闲卡**：
 
@@ -40,11 +40,14 @@ Agent 不得以"性能更好"、"避免 OOM"等理由自行调整这些参数。
 2. 从空闲卡中选取所需数量的连续设备。
 3. 如果空闲卡不足，向用户报告并中止，不得强行使用被占用的卡。
 4. 不要硬编码设备编号（如固定用 `0,1`），必须动态检测。
+5. 将预检结果显式写入 `ASCEND_RT_VISIBLE_DEVICES` 和 run manifest；`run_single_model.sh`
+   只校验设备数、格式和唯一性，不在启动过程中重新选卡。
 
-### 单卡启动失败自动升级 TP
+### 启动失败不得静默改变 TP
 
-如果模型配置为单卡（TP=1）但服务启动失败（常见原因：HCCL 初始化错误、OOM），
-自动升级为 TP=2 重试一次。重试时从空闲卡中选取 2 张。
+TP 是 benchmark 的受控变量。单卡启动失败时，先保留日志并分类原因，不得把同一次
+候选静默改成 TP=2。只有用户明确同意新增 TP=2 候选后，才重新预检两张空闲卡、创建
+新的 run root，并同时记录 `requested_tp` 与 `actual_tp`。
 
 ## 子 Skill 依赖
 
@@ -62,9 +65,9 @@ Agent 收到用户的简写 prompt 时，按以下约定自动补全为完整 ba
 
 | 规则 | 示例 |
 |---|---|
-| `model_path` = `model_dir` + `model_name` | `model_dir=/export/home/models/`, `model_name=Qwen3.5-27B` → `/export/home/models/Qwen3.5-27B` |
+| `model_path` = `model_dir` + `model_name` | `model_dir=/models/`, `model_name=Qwen3.5-27B` → `/models/Qwen3.5-27B` |
 | `tokenizer_path` = `model_path` | 同上 |
-| `draft_model_path` = `model_path` + `-mtp` | `/export/home/models/Qwen3.5-27B-mtp` |
+| `draft_model_path` = `model_path` + `-mtp` | `/models/Qwen3.5-27B-mtp` |
 
 ### MTP 默认行为
 
@@ -96,10 +99,10 @@ Agent 收到用户的简写 prompt 时，按以下约定自动补全为完整 ba
 
 | 用户写法 | 解析结果 |
 |---|---|
-| `Qwen3.5-27B：2卡，MTP` | nnodes=2, devices=0,1, MTP on |
-| `Qwen3.5-35B-A3B：TP=2` | nnodes=2, devices=0,1, MTP on（默认） |
-| `Qwen3.5-4B：单卡，不开MTP` | nnodes=1, devices=0, MTP off |
-| `DeepSeek-V3：8卡` | nnodes=8, devices=0-7, MTP on（默认） |
+| `Qwen3.5-27B：2卡，MTP` | nnodes=2, devices=`<2 张预检空闲卡>`, MTP on |
+| `Qwen3.5-35B-A3B：TP=2` | nnodes=2, devices=`<2 张预检空闲卡>`, MTP on（默认） |
+| `Qwen3.5-4B：单卡，不开MTP` | nnodes=1, devices=`<1 张预检空闲卡>`, MTP off |
+| `DeepSeek-V3：8卡` | nnodes=8, devices=`<8 张预检空闲卡>`, MTP on（默认） |
 
 ### 基础设施信息
 
@@ -108,6 +111,7 @@ Agent 收到用户的简写 prompt 时，按以下约定自动补全为完整 ba
 
 - `xllm_container`：运行 xLLM 服务的容器
 - `evalscope_container`：运行 evalscope 的容器（可选，不提供则在 xllm_container 中执行）
+- `api_url`：两个容器不同时必须显式提供从 evalscope 容器可达的 URL，不能使用 localhost
 - 遵守 [`ssh-remote-exec`](../ssh-remote-exec/SKILL.md) skill 的 SSH 执行约束
 
 ### 参考启动脚本
@@ -133,13 +137,14 @@ Agent 收到用户的简写 prompt 时，按以下约定自动补全为完整 ba
     "ssh_host": "",
     "xllm_container": "",
     "evalscope_container": "",
+    "api_url": "",
     "reference_script": "",
     "mtp_export_tool": ""
   },
   "common": {
     "xllm_bin": "",
     "start_port": 17112,
-    "model_dir": "/export/home/models/",
+    "model_dir": "/models/",
     "parallel_list": "1,2,4",
     "number": 4,
     "warmup_num": 2,
@@ -177,9 +182,10 @@ Agent 收到用户的简写 prompt 时，按以下约定自动补全为完整 ba
 
 | 字段 | 说明 | 默认 |
 |---|---|---|
-| `ssh_host` | SSH 远程主机（如 `103`） | 空=本地执行 |
+| `ssh_host` | SSH 远程主机（如 `npu-host`） | 空=本地执行 |
 | `xllm_container` | xLLM 服务容器名 | 空=宿主机执行 |
 | `evalscope_container` | evalscope 容器名 | 空=在 xllm_container 中执行 |
+| `api_url` | EvalScope 执行上下文可达的服务 URL | 同容器时默认 localhost；双容器时必填 |
 | `reference_script` | 参考启动脚本路径，提取默认参数 | 空 |
 | `mtp_export_tool` | MTP 权重导出脚本路径 | 空 |
 
@@ -208,14 +214,14 @@ Agent 收到用户的简写 prompt 时，按以下约定自动补全为完整 ba
 | `input_tokens` | 覆盖全局输入长度 | 否 |
 | `output_tokens` | 覆盖全局输出长度 | 否 |
 
-**自动推导字段**（不需要用户填写）：
+**规划阶段推导字段**（不需要用户手写，但必须写入最终 manifest）：
 
 | 字段 | 推导规则 |
 |---|---|
 | `model_path` | `model_dir` + `model_name` |
 | `tokenizer_path` | = `model_path` |
 | `draft_model_path` | `model_path` + `-mtp`（仅当 `mtp=true`） |
-| `visible_devices` | 启动前通过 `npu-smi info` 动态检测空闲卡，选取 nnodes 张 |
+| `visible_devices` | Agent 在启动前预检空闲卡并显式传给 runner，数量必须等于 nnodes |
 | `num_speculative_tokens` | 继承 common 值（仅当 `mtp=true`） |
 
 ## 编排流程
@@ -230,10 +236,10 @@ Agent 收到用户的简写 prompt 时，按以下约定自动补全为完整 ba
 3.5 检查空闲 NPU 卡（npu-smi info），动态分配设备
        |
 4. 循环每个 model：
-   ├── 4a. 停止已有服务（pkill -9 xllm）
+   ├── 4a. 清理上一 run 的 PID manifest，并确认端口/NPU 无冲突
    ├── 4b. 创建 model run root：$BATCH_ROOT/<model_name>/
-   ├── 4c. 自动推导 model_path、draft_model_path，从空闲卡分配 visible_devices
-   ├── 4c-fallback. 单卡启动失败时自动升级 TP=2 重试
+   ├── 4c. 自动推导 model_path、draft_model_path，传入预检固化的 visible_devices
+   ├── 4c-failure. 启动失败时保留原 TP 现场，不静默改变 benchmark 配置
    ├── 4d. 若 mtp=true 且 draft 目录不存在，调用 mtp_export_tool 生成
    ├── 4e. 设置环境变量 → 调用 xllm-npu-server-manager 启动服务
    ├── 4f. 等待服务 Ready（轮询 /models endpoint）
@@ -269,19 +275,11 @@ mkdir -p "$BATCH_ROOT"
 
 ### Step 4: 循环每个模型
 
-#### 4a. 停止已有服务
+#### 4a. 清理上一 run 的服务
 
-```bash
-pkill -9 xllm || true
-sleep 5
-```
-
-如果配置了 `infra`，通过 SSH + docker exec 执行：
-
-```bash
-ssh <ssh_host> "docker exec <xllm_container> bash -c 'pkill -9 xllm || true'"
-sleep 5
-```
+如果上一 run 的 PID manifest 仍存在，调用 `xllm-npu-server-manager/scripts/stop.sh`
+只停止其中记录的 PID。不得使用 `pkill -9 xllm`，因为共享主机或容器中可能存在
+其他用户或其他实验的服务。随后重新检查目标端口和 NPU 进程表。
 
 #### 4b. 创建 Model Run Root
 
@@ -290,7 +288,7 @@ MODEL_ROOT="$BATCH_ROOT/$MODEL_NAME"
 mkdir -p "$MODEL_ROOT"/{env,perf,service}
 ```
 
-#### 4c. 自动推导路径和设备
+#### 4c. 推导路径并固化预检设备
 
 ```
 model_path = model_dir + model_name
@@ -300,11 +298,13 @@ draft_model_path = model_path + "-mtp"  (仅 mtp=true)
 
 **设备分配**：不要硬编码 `0,1,...,nnodes-1`。启动前通过 `npu-smi info` 检查进程列表，
 识别被占用的 NPU 卡，从空闲卡中选取所需数量。如果空闲卡不足，向用户报告并中止。
+将选择结果写入 manifest 和 `ASCEND_RT_VISIBLE_DEVICES` 后再调用 runner。
 
-#### 4c-fallback. 单卡启动失败自动升级 TP
+#### 4c-failure. 启动失败保持原 TP
 
-如果模型配置为 TP=1 但服务启动失败（常见：HCCL get root info failed、OOM），
-自动升级为 TP=2 重试一次，从空闲卡中选取 2 张。
+如果模型配置为 TP=1 但服务启动失败（例如 HCCL、OOM、路径或端口问题），记录失败
+状态、PID 清理结果和服务日志。不得在同一 run 中自动升级 TP；TP=2 必须作为新的、
+明确批准的候选执行。
 
 #### 4d. MTP 权重自动导出
 
@@ -342,7 +342,7 @@ report-writer 将按 `references/summary-template.md` 的结构生成 `$BATCH_RO
    - 数值保留 1 位小数（TTFT/TPOT）或 1 位小数（tok/s）。
    - Spec Accept Rate 以百分比显示（如 66.9%），无 MTP 的模型填 `-`。
 4. **Key Findings**：总结最优模型、关键对比结论、并发退化幅度等。
-5. **Notes**：记录异常情况（启动失败自动升级 TP、MTP 自动导出等）。
+5. **Notes**：记录异常情况（启动失败分类、MTP 自动导出等）。
 
 ## 脚本
 
@@ -351,7 +351,7 @@ report-writer 将按 `references/summary-template.md` 的结构生成 `$BATCH_RO
 ## 故障处理
 
 - **某个模型启动失败**：记录错误到 `$MODEL_ROOT/error.log`，跳过该模型继续执行下一个。
-- **单卡启动失败**：如果模型配置为 TP=1 但启动失败（HCCL 错误、OOM 等），自动升级为 TP=2 重试一次。
+- **单卡启动失败**：保留 TP=1 的日志和失败状态；如需尝试 TP=2，创建独立候选和 run root。
 - **MTP 权重缺失**：尝试自动导出，导出失败则跳过并记录。
 - **性能测试超时**：设置单轮超时（默认 30 分钟），超时后停止并记录。
 - **NPU 资源不足**：启动前检查 `npu-smi info`，如果可用显存不足则跳过并告警。

@@ -263,7 +263,7 @@ python scripts/analyze_xllm_npu_profile.py \
 
 ### 昇腾 Profiling 数据格式
 
-详见 [references/ascend-profiling-formats.md](references/ascend-profiling-formats.md)。
+详见 [../../reference/knowledge/ascend-profiling-formats.md](../../reference/knowledge/ascend-profiling-formats.md)。
 
 关键文件：
 - `op_statistic*.csv`：算子调用统计，优先用于 Kernel Table

@@ -23,7 +23,7 @@ description: xLLM NPU 服务管理器。用于启动、停止、复用 xLLM 服�
 | API URL | `API_URL` | 服务 endpoint | `http://localhost:18050/v1` |
 | Model Path | `MODEL_PATH` | 主模型权重路径 | `/models/Qwen35-27B` |
 | Draft Model Path | `DRAFT_MODEL_PATH` | 投机解码 draft model 路径（留空则禁用 MTP） | `/models/Qwen35-27B-mtp` |
-| xLLM Binary Path | `XLLM_BIN` | xllm server binary 路径 | `<project_root>/xllm/build/xllm/core/server/xllm` |
+| xLLM Binary Path | `XLLM_BIN` | xllm server binary 路径 | `<project_root>/code/xllm/build/xllm/core/server/xllm` |
 | TP (NNODES) | `NNODES` | Tensor parallelism degree | `4` |
 | Visible Devices | `ASCEND_RT_VISIBLE_DEVICES` | 可见的 NPU 设备 ID（逗号分隔） | `0,1,2,3` |
 | Start Port | `START_PORT` | 起始端口 | `17112` |
@@ -47,6 +47,9 @@ description: xLLM NPU 服务管理器。用于启动、停止、复用 xLLM 服�
 | `NUM_SPECULATIVE_TOKENS` | 投机解码 token 数（0 则禁用 MTP） | `0` |
 | `NPU_MEMORY_FRACTION` | NPU 显存分配比例 | `0.90` |
 | `PROFILING_MODE` | profiling 模式 | `dynamic` |
+| `SOURCE_VENDOR_ENV` | 是否加载标准 Ascend/ATB 环境脚本 | `true` |
+| `PID_FILE` | 本次启动的 PID manifest | `$RUN_ROOT/service/xllm.pids` |
+| `STOP_TIMEOUT` | TERM 后等待秒数，超时再 KILL | `30` |
 
 ### Step 2: 创建 Run Root 和环境快照
 
@@ -101,25 +104,34 @@ fi
 轮询服务 health endpoint，直到有响应：
 
 ```bash
+ready=false
 for i in $(seq 1 60); do
   if curl -s <api_url>/models > /dev/null 2>&1; then
     echo "Service is ready!"
+    ready=true
     break
   fi
   echo "Waiting for service... ($i/60)"
   sleep 10
 done
+[ "$ready" = true ] || {
+  bash <skill_dir>/scripts/stop.sh
+  exit 1
+}
 ```
 
 如果 10 分钟内没有启动成功，检查 `log/node_0.log` 并向用户报告错误。
 
 ### Step 5: 停止服务（按需）
 
+只停止本次 `run.sh` 写入 PID manifest 的进程，避免误杀共享主机或容器中的其他服务：
+
 ```bash
-pkill -9 xllm || true
-sleep 2
+bash <skill_dir>/scripts/stop.sh
 pgrep -af xllm > "$RUN_ROOT/env/process.after_stop.txt" || true
 ```
+
+`stop.sh` 先发送 TERM，等待 `STOP_TIMEOUT`，仅对仍存活的已记录 PID 发送 KILL。
 
 ## 宿主机调度容器模式
 
@@ -136,7 +148,8 @@ pgrep -af xllm > "$RUN_ROOT/env/process.after_stop.txt" || true
 
 ## 脚本
 
-- **启动**：`scripts/run.sh` — 启动 xLLM 服务进程
+- **启动**：`scripts/run.sh` — 启动 xLLM 服务并写入 PID manifest
+- **停止**：`scripts/stop.sh` — 只停止 PID manifest 中属于本次 run 的进程
 
 ## 故障处理
 

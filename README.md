@@ -80,7 +80,7 @@ CLAUDE.md           → Claude Code redirect to AGENTS.md
 config.example.json → Shared default configuration template
 config.json         → Local configuration SSOT, generated and gitignored
 prompts/            → Copy-ready task prompt templates (Chinese)
-skills/             → 12 procedural agent skills (eval, profiler, benchmark, operator integration, …)
+skills/             → Procedural agent skills (eval, profiler, benchmark, operator integration, …)
 reference/
    knowledge/    → Immutable domain rules and hardware references
    code-style/   → C++/Python/NPU code style conventions
@@ -103,7 +103,7 @@ runs/               → Execution workspace (gitignored)
 
 **`scripts/`** is the deterministic engine — cross-skill shared automation scripts that LLMs must not modify. Changes to these scripts require human review.
 
-**`skills/`** contains 12 procedural agent skills, each with a SKILL.md defining the execution workflow, evidence contracts, and local references. Mode 1 links them into generated `.agents/skills`; Mode 2 links them into the selected agent skills directory.
+**`skills/`** contains procedural agent skills, each with a SKILL.md defining the execution workflow, evidence contracts, and local references. Mode 1 links them into generated `.agents/skills`; Mode 2 links them into the selected agent skills directory.
 
 ## 3 Typical Workflow
 
