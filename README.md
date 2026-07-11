@@ -114,6 +114,11 @@ preflight, run creation, checkpoints, finalization, and archival. Existing run
 directories do not move; `workspace-tasks.json` records task, source, branch,
 run root, and lifecycle state for new work.
 
+`preflight` validates source identity, submodules, binary dependencies, model
+paths, ports, tools, environment versions, and baseline fairness. Attempts are
+fingerprinted and hash-chained; finalization validates required evidence and
+emits checksums, checkpoint state, retention metadata, and derived ledgers.
+
 ## 3 Typical Workflow
 
 ![xLLM AI Coding Workflow](docs/assets/xllm-ai-coding-workflow-en.png)

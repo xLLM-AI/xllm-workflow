@@ -79,6 +79,10 @@ when their adapters and runbooks are added.
    - Define new experiments from `reference/io_specs/experiment.example.yaml`.
    - Run `scripts/xllm_flow.py preflight` before execution.
    - Create and resume run roots through `run create` and `checkpoint`.
+   - Record each candidate with `attempt add`; do not rerun a completed
+     fingerprint without an explicit repeat index.
+   - Use `run validate` before finalization and keep generated ledgers and
+     checksums with the run root.
    - Finish with `run finalize`; archive only after evidence and retention
      decisions are recorded.
 

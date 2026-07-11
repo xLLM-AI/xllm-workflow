@@ -107,6 +107,11 @@ runs/               → 执行现场（gitignored）
 run 创建、checkpoint、finalize 和 archive。历史 run 不要求移动；统一入口只约束
 新任务，并通过 `workspace-tasks.json` 记录 task、source、branch、run root 和状态。
 
+`preflight` 检查源码身份、submodule、二进制依赖、模型路径、端口、工具、环境版本和
+baseline 公平性。每次 attempt 由实验参数、代码和输入文件生成 fingerprint，并写入
+hash chain；finalize 会校验证据完整性，生成 checksum、checkpoint、retention 元数据和
+派生 ledger。
+
 ## 3 典型工作流
 
 ![xLLM AI Coding Workflow](docs/assets/xllm-ai-coding-workflow-zh.png)
