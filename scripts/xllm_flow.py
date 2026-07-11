@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -72,13 +73,23 @@ def git_identity(path: Path) -> dict[str, Any]:
     }
 
 
-def find_task_source(task_root: Path) -> Path | None:
+def find_task_sources(task_root: Path) -> list[Path]:
     if (task_root / ".git").exists():
-        return task_root
-    for candidate in sorted(task_root.glob("*")):
-        if candidate.is_dir() and (candidate / ".git").exists():
-            return candidate
-    return None
+        return [task_root]
+    return [candidate for candidate in sorted(task_root.glob("*")) if candidate.is_dir() and (candidate / ".git").exists()]
+
+
+def task_diagnostics(task_id: str, sources: list[Path], branch: str | None) -> list[str]:
+    diagnostics = []
+    if not sources:
+        diagnostics.append("SOURCE_MISSING")
+    if len(sources) > 1:
+        diagnostics.append("MULTIPLE_SOURCES")
+    task_tp = re.search(r"(?:^|[-_])tp(\d+)(?:[-_]|$)", task_id, re.I)
+    branch_tp = re.search(r"(?:^|[-_/])tp(\d+)(?:[-_/]|$)", branch or "", re.I)
+    if task_tp and branch_tp and task_tp.group(1) != branch_tp.group(1):
+        diagnostics.append("TASK_BRANCH_TP_MISMATCH")
+    return diagnostics
 
 
 def registry_sync(workspace: Path, registry_path: Path) -> dict[str, Any]:
@@ -91,7 +102,8 @@ def registry_sync(workspace: Path, registry_path: Path) -> dict[str, Any]:
         for root in sorted(tasks_root.iterdir()):
             if not root.is_dir():
                 continue
-            source = find_task_source(root)
+            sources = find_task_sources(root)
+            source = sources[0] if sources else None
             old = previous.get(root.name, {})
             discovered.add(root.name)
             identity = git_identity(source) if source else {"valid": False}
@@ -100,11 +112,13 @@ def registry_sync(workspace: Path, registry_path: Path) -> dict[str, Any]:
                 "state": old.get("state", "active"),
                 "task_root": str(root.resolve()),
                 "source_path": str(source.resolve()) if source else None,
+                "source_paths": [str(item.resolve()) for item in sources],
                 "run_root": old.get("run_root"),
                 "task_doc": str(root / "TASK.md") if (root / "TASK.md").exists() else None,
                 "branch": identity.get("branch"),
                 "commit": identity.get("commit"),
                 "dirty": identity.get("dirty"),
+                "diagnostics": task_diagnostics(root.name, sources, identity.get("branch")),
                 "present": True,
                 "last_active_at": old.get("last_active_at", utc_now()),
             })
@@ -113,7 +127,13 @@ def registry_sync(workspace: Path, registry_path: Path) -> dict[str, Any]:
             retained = dict(old)
             retained["present"] = False
             tasks.append(retained)
-    result = {"version": 1, "generated_at_utc": utc_now(), "workspace_root": str(workspace.resolve()), "tasks": tasks}
+    result = {
+        "version": 1,
+        "generated_at_utc": utc_now(),
+        "workspace_root": str(workspace.resolve()),
+        "diagnostic_count": sum(len(task.get("diagnostics", [])) for task in tasks),
+        "tasks": tasks,
+    }
     write_json(registry_path, result)
     return result
 

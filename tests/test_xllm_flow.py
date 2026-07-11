@@ -49,6 +49,7 @@ def test_registry_sync_discovers_task_checkout(tmp_path):
     result = flow.registry_sync(tmp_path, registry)
     assert result["tasks"][0]["task_id"] == "task-a"
     assert result["tasks"][0]["source_path"] == str(source.resolve())
+    assert result["tasks"][0]["source_paths"] == [str(source.resolve())]
     assert json.loads(registry.read_text())["tasks"][0]["state"] == "active"
 
 
@@ -58,6 +59,12 @@ def test_registry_sync_preserves_missing_history(tmp_path):
     result = flow.registry_sync(tmp_path, registry)
     assert result["tasks"][0]["task_id"] == "retired"
     assert result["tasks"][0]["present"] is False
+
+
+def test_task_diagnostics_detects_missing_multiple_and_tp_mismatch(tmp_path):
+    assert flow.task_diagnostics("task-tp2", [], None) == ["SOURCE_MISSING"]
+    diagnostics = flow.task_diagnostics("task-tp3", [tmp_path / "a", tmp_path / "b"], "perf/model-tp2-fast")
+    assert diagnostics == ["MULTIPLE_SOURCES", "TASK_BRANCH_TP_MISMATCH"]
 
 
 def test_preflight_and_run_lifecycle(tmp_path):

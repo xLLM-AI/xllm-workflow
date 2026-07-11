@@ -29,6 +29,8 @@ python scripts/xllm_flow.py run finalize --run-root runs/example-campaign --stat
 python scripts/xllm_flow.py --workspace-root /path/to/workspace registry sync
 ```
 
+注册表同时报告缺失 source、单任务多 source，以及 task ID 与分支 TP 编号不一致。
+
 统一入口负责身份、证据和生命周期；服务启动、EvalScope、profiling 和 compare
 继续调用本目录现有确定性脚本。
 
