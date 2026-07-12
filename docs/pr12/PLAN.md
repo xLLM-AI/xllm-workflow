@@ -461,15 +461,15 @@ docs: document workflow skill migration.
 
 ## Definition of Done
 
-- [ ] 所有当前 skill 均完成 inventory 与 taxonomy。
-- [ ] routing baseline 与最终结果可比较，且主要歧义得到改善。
-- [ ] public/internal/compatibility 边界明确。
-- [ ] canonical/alias 无循环、无重复实现、无断链。
-- [ ] PR #11 lifecycle 与 evidence 语义无回归。
-- [ ] xLLM 主路径通过完整测试与 smoke。
-- [ ] vLLM-Ascend/SGLang 仍明确标为实验性 adapter，未过度宣称。
-- [ ] 文档、catalog、SKILL descriptions 与安装链接一致。
-- [ ] full tests、routing tests、refresh、smoke、diff check 全部通过。
+- [x] 所有当前 skill 均完成 inventory 与 taxonomy。
+- [x] routing baseline 与最终结果可比较，且主要歧义得到改善。
+- [x] public/internal/compatibility 边界明确。
+- [x] canonical/alias 无循环、无重复实现、无断链。
+- [x] PR #11 lifecycle 与 evidence 语义无回归。
+- [x] xLLM 主路径通过完整测试与 smoke。
+- [x] vLLM-Ascend/SGLang 仍明确标为实验性 adapter，未过度宣称。
+- [x] 文档、catalog、SKILL descriptions 与安装链接一致。
+- [x] full tests、routing tests、refresh、smoke、diff check 全部通过。
 - [ ] 创建 Draft PR，标题符合规范并以句点结尾。
 - [ ] Draft PR 正文包含 before/after routing matrix、兼容说明、测试结果和剩余限制。
 
@@ -483,7 +483,7 @@ docs: document workflow skill migration.
 - [x] Phase 3 public entry/runner refactor
 - [x] Phase 4 compatibility aliases
 - [x] Phase 5 internalization
-- [ ] Phase 6 validation and PR
+- [ ] Phase 6 validation and PR (validation complete; Draft PR pending)
 
 ## Decision Log
 
@@ -550,3 +550,11 @@ docs: document workflow skill migration.
 - Chosen option: keep the directory and explicit `$ssh-remote-exec` capability, mark it internal in the catalog, and set `policy.allow_implicit_invocation: false`. Preserve all other direct routes.
 - Compatibility impact: explicit remote execution remains available; ordinary prompts no longer receive it as an implicit candidate. No underlying SSH procedure changes.
 - Rollback method: remove the policy file or restore implicit invocation and revert the Phase 5 commit.
+
+### D-008: Validate routing and lifecycle without inventing an NPU workload
+
+- Evidence: 20 canonical links refresh without skips or breakage; 19/19 baseline names resolve; 32/32 routing cases have one expected primary and zero missing lifecycle routes; synthetic create/finalize/archive and tamper-rejection tests pass; `npu-smi` shows a live process on device 4 but the Issue provides no pinned model, binary, workload, or experiment spec.
+- Alternatives considered: start an arbitrary NPU serving task; treat unit tests alone as refresh proof; run filesystem refresh plus deterministic lifecycle smoke and record the hardware condition.
+- Chosen option: execute the complete non-NPU validation surface and skip the conditional real NPU task because choosing an arbitrary workload would expand PR scope and yield non-comparable evidence.
+- Compatibility impact: none; validation rebuilt the same 19 old canonical links plus the additive lifecycle link.
+- Rollback method: restore the pre-refresh link inventory from `/tmp/pr12-skill-links-before.txt`; repository changes can be reverted phase by phase.
