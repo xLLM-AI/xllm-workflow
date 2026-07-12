@@ -1,6 +1,7 @@
 from copy import deepcopy
 import importlib.util
 from pathlib import Path
+import re
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -87,3 +88,14 @@ def test_pr12_preserves_every_baseline_name_as_canonical():
     value = catalog()
     assert baseline_names <= {skill["id"] for skill in value["skills"]}
     assert value["aliases"] == []
+
+
+def test_internal_skills_disable_implicit_invocation():
+    value = catalog()
+    internal = [skill for skill in value["skills"] if skill["visibility"] == "internal"]
+    assert {skill["id"] for skill in internal} == {"ssh-remote-exec"}
+    for skill in internal:
+        policy = ROOT / "skills" / skill["directory"] / "agents" / "openai.yaml"
+        assert policy.is_file(), skill["id"]
+        text = policy.read_text(encoding="utf-8")
+        assert re.search(r"^\s*allow_implicit_invocation:\s*false\s*$", text, re.MULTILINE)

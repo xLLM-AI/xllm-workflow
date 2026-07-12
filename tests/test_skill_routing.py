@@ -64,3 +64,10 @@ def test_baseline_records_real_ambiguity_without_fake_accuracy():
     assert "accuracy" not in corpus["scoring"]
     ambiguous = [case for case in corpus["cases"] if len(case["current_primary_candidates"]) > 1]
     assert len(ambiguous) >= 20
+
+
+def test_internal_skills_never_win_expected_primary_routing():
+    catalog = json.loads((ROOT / "skills" / "catalog.json").read_text(encoding="utf-8"))
+    internal = {skill["id"] for skill in catalog["skills"] if skill["visibility"] == "internal"}
+    expected = {primary for case in load_corpus()["cases"] for primary in case["expected_primary"]}
+    assert internal.isdisjoint(expected)

@@ -482,7 +482,7 @@ docs: document workflow skill migration.
 - [x] Phase 2 taxonomy/catalog
 - [x] Phase 3 public entry/runner refactor
 - [x] Phase 4 compatibility aliases
-- [ ] Phase 5 internalization
+- [x] Phase 5 internalization
 - [ ] Phase 6 validation and PR
 
 ## Decision Log
@@ -542,3 +542,11 @@ docs: document workflow skill migration.
 - Chosen option: keep `aliases` empty for PR12, test preservation of every baseline canonical ID, require compatibility metadata for any future alias, and reject alias chains as well as loops, missing targets, and multiple targets.
 - Compatibility impact: all existing invocations and links remain valid. There is no deprecation window because no old name is deprecated.
 - Rollback method: revert the Phase 4 policy/test commit; no runtime implementation or skill path changes are involved.
+
+### D-007: Internalize only delegated remote execution
+
+- Evidence: inventory and routing cases show no ordinary primary intent for `ssh-remote-exec`; batch, eval, and server consume it as implementation support. Explicit build, service, perf, accuracy, and completed-artifact report cases each retain independent user outcomes. Fairness, evidence, checksum, and projection are already internal functions/scripts rather than skill entries.
+- Alternatives considered: internalize every runner/gate/support skill; leave all skills implicitly routable; disable implicit invocation only for `ssh-remote-exec` while preserving explicit invocation.
+- Chosen option: keep the directory and explicit `$ssh-remote-exec` capability, mark it internal in the catalog, and set `policy.allow_implicit_invocation: false`. Preserve all other direct routes.
+- Compatibility impact: explicit remote execution remains available; ordinary prompts no longer receive it as an implicit candidate. No underlying SSH procedure changes.
+- Rollback method: remove the policy file or restore implicit invocation and revert the Phase 5 commit.
