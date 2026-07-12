@@ -479,7 +479,7 @@ docs: document workflow skill migration.
 
 - [x] Phase 0 audit
 - [x] Phase 1 routing baseline
-- [ ] Phase 2 taxonomy/catalog
+- [x] Phase 2 taxonomy/catalog
 - [ ] Phase 3 public entry/runner refactor
 - [ ] Phase 4 compatibility aliases
 - [ ] Phase 5 internalization
@@ -518,3 +518,11 @@ docs: document workflow skill migration.
 - Chosen option: version a fixed prompt corpus and test its schema, coverage, references, allowed followups, forbidden primaries, and missing-route sentinel.
 - Compatibility impact: none; Phase 1 does not modify skill routing behavior.
 - Rollback method: revert the Phase 1 test/documentation commit.
+
+### D-004: Use one machine-readable catalog as the taxonomy source
+
+- Evidence: all 19 audited skills are represented in `skills/catalog.json`; `scripts/validate_skill_catalog.py` checks inventory coverage, identifiers, dependencies, visibility, priorities, and alias integrity; 14 focused tests pass.
+- Alternatives considered: duplicate taxonomy fields in every `SKILL.md` frontmatter; infer taxonomy from prose; maintain one repository-level catalog.
+- Chosen option: make `skills/catalog.json` the single taxonomy source for Phase 2 and keep existing skill behavior unchanged. Do not duplicate metadata in frontmatter. Keep the alias list empty until Phase 4 has evidence for a compatibility mapping.
+- Compatibility impact: none; no skill is renamed, moved, deleted, or newly routed in this phase.
+- Rollback method: revert the Phase 2 catalog, validator, and tests commit.
