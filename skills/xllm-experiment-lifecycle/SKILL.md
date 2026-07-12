@@ -41,10 +41,11 @@ python scripts/xllm_flow.py --workspace-root "$WORKSPACE_ROOT" --registry "$REGI
   run create --spec experiment.yaml
 # 恢复时读取 "$RUN_ROOT/CHECKPOINT.md"，推进阶段时使用 checkpoint 子命令。
 # 专项 skill 执行 build -> service -> benchmark；每个结果通过 attempt add 记录。
+# performance specialist 将原始结果写入 perf/raw/，规范化指标写入 perf/metrics.json。
 python scripts/xllm_flow.py attempt add --run-root "$RUN_ROOT" --spec experiment.yaml \
   --attempt-id baseline-r0 --phase benchmark --status pass --hypothesis baseline \
-  --metrics-json "$RUN_ROOT/reports/metrics.json" \
-  --artifact reports/metrics.json --repeat-index 0
+  --metrics-json "$RUN_ROOT/perf/metrics.json" \
+  --artifact perf/metrics.json --repeat-index 0
 
 python scripts/xllm_flow.py run validate --run-root "$RUN_ROOT" --status pass
 python scripts/xllm_flow.py export evidence --run-root "$RUN_ROOT"
@@ -53,7 +54,7 @@ python scripts/xllm_flow.py gate all --run-root "$RUN_ROOT" \
 python scripts/xllm_flow.py --workspace-root "$WORKSPACE_ROOT" \
   run finalize --run-root "$RUN_ROOT" --status pass \
   --reviewed-by "$USER" --retention-decision keep \
-  --kept-path reports/metrics.json
+  --kept-path perf/metrics.json
 
 # 检查生成的 retention-review.md，再通过同一个 workspace registry 归档。
 python scripts/xllm_flow.py --workspace-root "$WORKSPACE_ROOT" --registry "$REGISTRY" \
@@ -61,10 +62,19 @@ python scripts/xllm_flow.py --workspace-root "$WORKSPACE_ROOT" --registry "$REGI
 ```
 
 `--formal` 只用于 `full`、`formal-pr` 或 `sota-report` evidence level；smoke/quick
-不得伪装成 formal claim。公平对比还要向 `gate all` 增加 `--require fairness` 和
-`--fairness-root`，performance optimization 还必须通过 Big-Rock gate。实际参数以各
-子命令 `--help` 为准。不要绕过 `preflight`、`run validate`、evidence export 或
-`gate all` 手工修改最终状态。
+不得伪装成 formal claim。`performance_optimization` run 必须通过 Big-Rock gate；如果
+`gate all` 显式列出 `--require`，必须加入 `--require big-rock`。公平对比必须同时加入
+`--require fairness` 和实际的 `--fairness-root`。例如，正式性能优化公平对比的 gate
+至少应包含：
+
+```bash
+python scripts/xllm_flow.py gate all --run-root "$RUN_ROOT" \
+  --require build --require service --require evidence --require big-rock \
+  --require fairness --fairness-root "$FAIRNESS_ROOT"
+```
+
+实际参数以各子命令 `--help` 为准。不要绕过 `preflight`、`run validate`、evidence
+export 或 `gate all` 手工修改最终状态。
 
 ## 恢复与委托
 

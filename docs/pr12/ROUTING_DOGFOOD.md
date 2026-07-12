@@ -35,6 +35,21 @@ Observed HEAD before probes: `e5763bf10cacf65e8c342b45384bdac045f4f592`
 | 13 | 只启动服务，完成 ready、真实 smoke 和 cleanup 证明。 | `xllm-npu-server-manager` | None | Incident triage on failure; lifecycle only if a formal run is later requested | Launch, ready, real generation smoke, and cleanup evidence are exactly the service lifecycle boundary. |
 | 14 | 显式使用 `$ssh-remote-exec` 在远程主机执行 `uname -a`。 | `ssh-remote-exec` | None | None | Explicit skill invocation wins; the probe correctly stopped without making an SSH connection. The isolated agent also reported that the refreshed skill was not present in its static available-skill list, despite selecting the explicit skill. |
 
+### Additional Sealed History Observation
+
+This observation was captured in a new isolated, read-only Codex task after the original 14 probes.
+The task received only the raw prompt and routing-only restrictions; it did not execute a command,
+read routing expectations, or modify a file. The comparison fields below were intentionally left
+pending until this raw result was saved.
+
+| Case | Prompt | Observed primary skill | Observed implicit skills | Allowed followups | Observed rationale |
+|---:|---|---|---|---|---|
+| 15 | 查询 Qwen3.5 MTP 历史 PR 改过什么、有哪些精度风险和 next checks。 | `model-pr-optimization-history` | None | `xllm-npu-accuracy-debug` if history indicates a current regression; `xllm-npu-accuracy-runner` for CEval or other next checks; `xllm-experiment-lifecycle` for a formal validation run | The request is a bounded model dossier and PR-history lookup. It asks for prior changes, known accuracy risks, failed lessons, and recorded next checks, not a new experiment or diagnosis. |
+
+History specification comparison: expected primary `model-pr-optimization-history`; **Match**;
+mismatch root cause: none; scope overclaim: no. The reported follow-ups are conditional new tasks
+after the history query, not implicit dependencies or work allowed inside this self-contained probe.
+
 ## Specification Comparison
 
 The specification was opened only after the raw observations above were saved.
@@ -55,11 +70,13 @@ The specification was opened only after the raw observations above were saved.
 | 12 | `xllm-npu-build-gate` | Match | None | No |
 | 13 | `xllm-npu-server-manager` | Match | None | No |
 | 14 | `ssh-remote-exec` | Match | None | No; this was an explicit invocation, not implicit routing. |
+| 15 | `model-pr-optimization-history` | Match | None | No; conditional future validation tasks were not treated as current dependencies. |
 
 ## Acceptance Summary
 
-- Observed primary match rate: **14/14 (100%)**.
+- Observed primary match rate: **15/15 (100%)**.
 - Lifecycle create/resume/finalize: **3/3 (100%)** to `xllm-experiment-lifecycle`.
+- Direct model history query: **1/1** to `model-pr-optimization-history`.
 - Open-ended optimization: **1/1** to `xllm-npu-sota-loop`.
 - Single performance, mixed eval, batch, benchmark, profiler, and pipeline: **6/6** to their
   corresponding specialist skills.
@@ -74,6 +91,8 @@ The specification was opened only after the raw observations above were saved.
 - Primary mismatches: **none**.
 - Scope overclaims: **none**.
 
-The dogfood therefore meets the requested 90% threshold without changing `expected_primary` or any
-runtime/skill routing implementation. No mismatch-driven SKILL.md change or failed-case retest was
-needed.
+The deterministic routing corpus specifies expected ownership; this dogfood is a bounded observed
+sample and does not claim general model-router accuracy. It meets the requested threshold without
+changing `expected_primary` or any routing implementation. No mismatch-driven description change
+or failed-case retest was needed. vLLM-Ascend and SGLang remain experimental adapter/artifact
+scopes.

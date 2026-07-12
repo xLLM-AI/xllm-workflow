@@ -486,7 +486,7 @@ docs: document workflow skill migration.
 - [x] Phase 5 internalization
 - [x] Phase 6 validation and PR ([Draft PR #13](https://github.com/xLLM-AI/xllm-workflow/pull/13))
 - [x] Architecture review blocking fixes
-- [x] Fresh-task Codex routing dogfood (14/14 observed primary matches)
+- [x] Fresh-task Codex routing dogfood (15/15 observed primary matches; direct history 1/1)
 
 ## Decision Log
 
@@ -594,3 +594,18 @@ docs: document workflow skill migration.
   changed.
 - Rollback method: revert the dogfood documentation commit; the routing implementation and prior
   validation remain unchanged.
+
+### D-012: Finalize lifecycle evidence paths and direct history routing evidence
+
+- Evidence: the public lifecycle example now matches the real subprocess smoke at `perf/raw/` and
+  `perf/metrics.json`; `--metrics-json`, `--artifact`, and `--kept-path` share the canonical metrics
+  path. A new isolated history probe selected `model-pr-optimization-history`, bringing the bounded
+  observed sample to 15/15 with direct history at 1/1.
+- Alternatives considered: keep the stale `reports/metrics.json` example; weaken the lifecycle test
+  to text matching; change routing expectations to fit the observation.
+- Chosen option: align documentation with the existing performance evidence contract, retain the
+  real CLI subprocess smoke, preserve all taxonomy and expected routes, and move PR #13 to Ready
+  for Review after final validation.
+- Compatibility impact: none; canonical skill names, locations, runtime behavior, and routing
+  ownership are unchanged. vLLM-Ascend and SGLang remain experimental adapter/artifact scopes.
+- Rollback method: revert the final polish commit; no runtime migration is required.
