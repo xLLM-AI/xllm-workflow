@@ -478,7 +478,7 @@ docs: document workflow skill migration.
 ## Progress
 
 - [x] Phase 0 audit
-- [ ] Phase 1 routing baseline
+- [x] Phase 1 routing baseline
 - [ ] Phase 2 taxonomy/catalog
 - [ ] Phase 3 public entry/runner refactor
 - [ ] Phase 4 compatibility aliases
@@ -510,3 +510,11 @@ docs: document workflow skill migration.
 - Chosen option: use the acyclic runtime/delegation DAG and list apparent backlink cycles separately.
 - Compatibility impact: none.
 - Rollback method: revert the Phase 0 documentation commit.
+
+### D-003: Use an auditable routing corpus instead of a fabricated model score
+
+- Evidence: 32 cases in `tests/routing/cases.yaml`; 29 record multiple current candidates; 5 record the missing lifecycle route; `tests/test_skill_routing.py`.
+- Alternatives considered: claim a subjective routing percentage; invoke an unspecified model; use a deterministic expectation corpus with explicit current ambiguity.
+- Chosen option: version a fixed prompt corpus and test its schema, coverage, references, allowed followups, forbidden primaries, and missing-route sentinel.
+- Compatibility impact: none; Phase 1 does not modify skill routing behavior.
+- Rollback method: revert the Phase 1 test/documentation commit.
