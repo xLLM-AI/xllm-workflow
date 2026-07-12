@@ -373,6 +373,18 @@ def find_project_skill_dirs(project_skills_dir: Path | None = None) -> list[Path
     project_skills_dir = project_skills_dir or PROJECT_SKILLS_DIR
     if not project_skills_dir.is_dir():
         return []
+    catalog_path = project_skills_dir / "catalog.json"
+    if catalog_path.is_file():
+        try:
+            catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+            directories = [entry["directory"] for entry in catalog["skills"]]
+        except (json.JSONDecodeError, KeyError, TypeError) as exc:
+            raise InitError(f"skill catalog is invalid: {catalog_path} ({exc})") from exc
+        skill_dirs = [project_skills_dir / directory for directory in directories]
+        missing = [path.name for path in skill_dirs if not (path / "SKILL.md").is_file()]
+        if missing:
+            raise InitError(f"skill catalog references missing directories: {', '.join(sorted(missing))}")
+        return skill_dirs
     return [
         child
         for child in sorted(project_skills_dir.iterdir())

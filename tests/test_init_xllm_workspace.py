@@ -157,6 +157,19 @@ def test_install_project_skills_links_to_target_dir(tmp_path, monkeypatch):
     assert (target_dir / "triage").exists()
 
 
+def test_catalog_canonical_set_matches_installer_output(tmp_path):
+    catalog = json.loads((ROOT / "skills/catalog.json").read_text(encoding="utf-8"))
+    canonical = {skill["id"] for skill in catalog["skills"]}
+    discovered = init.find_project_skill_dirs()
+    assert {path.name for path in discovered} == {skill["directory"] for skill in catalog["skills"]}
+    assert len(discovered) == len(canonical)
+
+    linked, skipped = init.install_project_skills(tmp_path / "installed")
+    assert skipped == []
+    assert len(linked) == len(canonical)
+    assert {path.name for path in (tmp_path / "installed").iterdir()} == canonical
+
+
 def test_link_skill_dirs_copies_when_windows_symlink_privilege_is_missing(tmp_path, monkeypatch):
     source = tmp_path / "skills" / "triage"
     source.mkdir(parents=True)

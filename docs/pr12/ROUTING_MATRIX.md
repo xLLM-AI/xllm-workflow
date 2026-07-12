@@ -1,7 +1,7 @@
 # PR12 Routing Matrix
 
 This Phase 1 matrix defines desired primary ownership before any structural change. It is an
-auditable specification backed by `tests/routing/cases.yaml`, not a measured model accuracy claim.
+auditable specification backed by `tests/routing/cases.json`, not a measured model accuracy claim.
 
 | Intent | Expected primary | Allowed followups | Forbidden primary |
 |---|---|---|---|

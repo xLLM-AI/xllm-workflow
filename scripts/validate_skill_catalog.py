@@ -19,6 +19,9 @@ REQUIRED_SKILL_FIELDS = {
 CATEGORIES = {"orchestrator", "planner", "runner", "analyzer", "gate", "support"}
 VISIBILITIES = {"public", "internal", "compatibility"}
 REQUIRED_ALIAS_FIELDS = {"id", "target", "description", "introduced_in", "removal_conditions"}
+SCALAR_FIELDS = {"id", "directory", "category", "visibility", "ownership"}
+ROUTING_PRIORITY_RANGE = range(1, 101)
+IGNORED_SKILL_PARTS = {".git", ".agents", ".pytest_cache", "__pycache__", "code", "runs"}
 
 
 def load_catalog(path: Path) -> dict[str, Any]:
@@ -57,8 +60,15 @@ def validate_catalog(catalog: dict[str, Any], root: Path) -> list[str]:
         if missing:
             errors.append(f"{skill.get('id', index)} missing fields: {sorted(missing)}")
             continue
-        skill_id = skill["id"]
-        directory = skill["directory"]
+        invalid_scalars = [
+            field for field in SCALAR_FIELDS
+            if not isinstance(skill[field], str) or not skill[field].strip()
+        ]
+        if invalid_scalars:
+            errors.append(f"skills[{index}] scalar fields must be non-empty strings: {sorted(invalid_scalars)}")
+            continue
+        skill_id = skill["id"].strip()
+        directory = skill["directory"].strip()
         if skill_id in ids:
             errors.append(f"duplicate skill id: {skill_id}")
         ids[skill_id] = skill
@@ -69,24 +79,40 @@ def validate_catalog(catalog: dict[str, Any], root: Path) -> list[str]:
             errors.append(f"invalid category for {skill_id}: {skill['category']}")
         if skill["visibility"] not in VISIBILITIES:
             errors.append(f"invalid visibility for {skill_id}: {skill['visibility']}")
-        if not isinstance(skill["routing_priority"], int):
-            errors.append(f"routing_priority must be integer for {skill_id}")
+        if not isinstance(skill["routing_priority"], int) or isinstance(skill["routing_priority"], bool) or skill["routing_priority"] not in ROUTING_PRIORITY_RANGE:
+            errors.append(f"routing_priority must be an integer from 1 to 100 for {skill_id}")
         for field in ("primary_intents", "negative_intents", "dependencies", "lifecycle_stage", "framework_scope", "backend_scope"):
             if not isinstance(skill[field], list) or (field != "dependencies" and not skill[field]):
                 errors.append(f"{field} must be a non-empty list for {skill_id}")
+            elif any(not isinstance(item, str) or not item.strip() for item in skill[field]):
+                errors.append(f"{field} entries must be non-empty strings for {skill_id}")
         skill_file = root / "skills" / directory / "SKILL.md"
         if not skill_file.is_file():
             errors.append(f"missing skill directory or SKILL.md: {directory}")
         elif declared_name(skill_file) != skill_id:
             errors.append(f"declared name drift for {directory}: {declared_name(skill_file)!r} != {skill_id!r}")
 
-    actual_directories = {path.parent.name for path in (root / "skills").glob("*/SKILL.md")}
+    actual_skill_files = {path.resolve() for path in (root / "skills").glob("*/SKILL.md")}
+    actual_directories = {path.parent.name for path in actual_skill_files}
     for directory in sorted(actual_directories - directories.keys()):
         errors.append(f"catalog missing skill directory: {directory}")
     for skill_id, skill in ids.items():
-        for dependency in skill.get("dependencies", []):
+        dependencies = skill.get("dependencies", [])
+        if isinstance(dependencies, list) and all(isinstance(item, str) for item in dependencies) and len(dependencies) != len(set(dependencies)):
+            errors.append(f"duplicate dependency for {skill_id}")
+        if skill_id in dependencies:
+            errors.append(f"self dependency for {skill_id}")
+        for dependency in dependencies:
             if dependency not in ids:
                 errors.append(f"invalid dependency for {skill_id}: {dependency}")
+
+    repository_skill_files = {
+        path.resolve()
+        for path in root.rglob("SKILL.md")
+        if not any(part in IGNORED_SKILL_PARTS for part in path.relative_to(root).parts)
+    }
+    for path in sorted(repository_skill_files - actual_skill_files):
+        errors.append(f"orphan SKILL.md outside catalog/install policy: {path.relative_to(root)}")
 
     alias_targets: dict[str, str] = {}
     for index, alias in enumerate(aliases):
@@ -94,9 +120,11 @@ def validate_catalog(catalog: dict[str, Any], root: Path) -> list[str]:
             errors.append(f"aliases[{index}] missing required compatibility metadata")
             continue
         alias_id, target = alias["id"], alias["target"]
-        for field in ("description", "introduced_in", "removal_conditions"):
+        for field in REQUIRED_ALIAS_FIELDS:
             if not isinstance(alias[field], str) or not alias[field].strip():
                 errors.append(f"alias {alias_id} has empty {field}")
+        if not isinstance(alias_id, str) or not alias_id.strip() or not isinstance(target, str) or not target.strip():
+            continue
         if alias_id in ids:
             errors.append(f"alias collides with canonical id: {alias_id}")
         if alias_id in alias_targets and alias_targets[alias_id] != target:
@@ -105,9 +133,8 @@ def validate_catalog(catalog: dict[str, Any], root: Path) -> list[str]:
             errors.append(f"duplicate alias id: {alias_id}")
         alias_targets[alias_id] = target
 
-    resolvable = set(ids) | set(alias_targets)
     for alias_id, target in alias_targets.items():
-        if target not in resolvable:
+        if target not in ids:
             errors.append(f"missing alias target for {alias_id}: {target}")
         if target in alias_targets:
             errors.append(f"alias target must be canonical for {alias_id}: {target}")

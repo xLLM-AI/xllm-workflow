@@ -99,3 +99,40 @@ def test_internal_skills_disable_implicit_invocation():
         assert policy.is_file(), skill["id"]
         text = policy.read_text(encoding="utf-8")
         assert re.search(r"^\s*allow_implicit_invocation:\s*false\s*$", text, re.MULTILINE)
+
+
+def test_catalog_rejects_empty_scalar_and_out_of_range_priority():
+    value = catalog()
+    value["skills"][0]["ownership"] = ""
+    value["skills"][1]["routing_priority"] = 0
+    found = errors(value)
+    assert any("scalar fields must be non-empty strings" in error for error in found)
+    assert any("integer from 1 to 100" in error for error in found)
+
+
+def test_catalog_rejects_duplicate_and_self_dependencies():
+    value = catalog()
+    skill = value["skills"][0]
+    skill["dependencies"] = [skill["id"], skill["id"]]
+    found = errors(value)
+    assert any("duplicate dependency" in error for error in found)
+    assert any("self dependency" in error for error in found)
+
+
+def test_catalog_rejects_orphan_skill_file(tmp_path):
+    value = catalog()
+    for skill in value["skills"]:
+        target = tmp_path / "skills" / skill["directory"] / "SKILL.md"
+        target.parent.mkdir(parents=True)
+        target.write_text(
+            f"---\nname: {skill['id']}\ndescription: test\n---\n",
+            encoding="utf-8",
+        )
+    inventory = tmp_path / "docs/pr12/SKILL_INVENTORY.md"
+    inventory.parent.mkdir(parents=True)
+    inventory.write_text("\n".join(f"`{skill['id']}`" for skill in value["skills"]), encoding="utf-8")
+    orphan = tmp_path / "reference/orphan/SKILL.md"
+    orphan.parent.mkdir(parents=True)
+    orphan.write_text("---\nname: orphan\ndescription: orphan\n---\n", encoding="utf-8")
+    found = MODULE.validate_catalog(value, tmp_path)
+    assert any("orphan SKILL.md" in error for error in found)
