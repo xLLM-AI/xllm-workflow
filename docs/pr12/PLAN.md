@@ -469,7 +469,8 @@ docs: document workflow skill migration.
 - [x] xLLM 主路径通过完整测试与 smoke。
 - [x] vLLM-Ascend/SGLang 仍明确标为实验性 adapter，未过度宣称。
 - [x] 文档、catalog、SKILL descriptions 与安装链接一致。
-- [x] full tests、routing tests、refresh、smoke、diff check 全部通过。
+- [x] review-fix 后的 full tests、routing tests、refresh、smoke、diff check 全部通过。
+- [ ] 在全新 Codex task 中完成真实 routing dogfood，并记录 observed route 与 specification 的差异。
 - [x] 创建 Draft PR，标题符合规范并以句点结尾。
 - [x] Draft PR 正文包含 before/after routing matrix、兼容说明、测试结果和剩余限制。
 
@@ -484,6 +485,8 @@ docs: document workflow skill migration.
 - [x] Phase 4 compatibility aliases
 - [x] Phase 5 internalization
 - [x] Phase 6 validation and PR ([Draft PR #13](https://github.com/xLLM-AI/xllm-workflow/pull/13))
+- [x] Architecture review blocking fixes
+- [ ] Fresh-task Codex routing dogfood
 
 ## Decision Log
 
@@ -513,7 +516,7 @@ docs: document workflow skill migration.
 
 ### D-003: Use an auditable routing corpus instead of a fabricated model score
 
-- Evidence: 32 cases in `tests/routing/cases.yaml`; 29 record multiple current candidates; 5 record the missing lifecycle route; `tests/test_skill_routing.py`.
+- Evidence: the baseline had 32 cases in `tests/routing/cases.yaml`; review renamed the JSON-parsed corpus to `tests/routing/cases.json` and expanded it to 34 cases covering every public skill. The original five missing lifecycle routes remain preserved as baseline evidence.
 - Alternatives considered: claim a subjective routing percentage; invoke an unspecified model; use a deterministic expectation corpus with explicit current ambiguity.
 - Chosen option: version a fixed prompt corpus and test its schema, coverage, references, allowed followups, forbidden primaries, and missing-route sentinel.
 - Compatibility impact: none; Phase 1 does not modify skill routing behavior.
@@ -523,7 +526,7 @@ docs: document workflow skill migration.
 
 - Evidence: all 19 audited skills are represented in `skills/catalog.json`; `scripts/validate_skill_catalog.py` checks inventory coverage, identifiers, dependencies, visibility, priorities, and alias integrity; 14 focused tests pass.
 - Alternatives considered: duplicate taxonomy fields in every `SKILL.md` frontmatter; infer taxonomy from prose; maintain one repository-level catalog.
-- Chosen option: make `skills/catalog.json` the single taxonomy source for Phase 2 and keep existing skill behavior unchanged. Do not duplicate metadata in frontmatter. Keep the alias list empty until Phase 4 has evidence for a compatibility mapping.
+- Chosen option: make `skills/catalog.json` the machine-readable taxonomy source and, after review, the installer canonical-directory source. Do not duplicate metadata in frontmatter. Codex runtime routing does not consume the catalog directly, so it is not described as a complete runtime routing SSOT.
 - Compatibility impact: none; no skill is renamed, moved, deleted, or newly routed in this phase.
 - Rollback method: revert the Phase 2 catalog, validator, and tests commit.
 
@@ -558,3 +561,19 @@ docs: document workflow skill migration.
 - Chosen option: execute the complete non-NPU validation surface and skip the conditional real NPU task because choosing an arbitrary workload would expand PR scope and yield non-comparable evidence.
 - Compatibility impact: none; validation rebuilt the same 19 old canonical links plus the additive lifecycle link.
 - Rollback method: restore the pre-refresh link inventory from `/tmp/pr12-skill-links-before.txt`; repository changes can be reverted phase by phase.
+
+### D-009: Promote the orphan history entry to a formal public skill
+
+- Evidence: the former `reference/pr_history/SKILL.md` defines a self-contained query goal, accepts model/keyword/framework/path inputs, returns matching dossiers and sections, and is implemented by the independently runnable `scripts/query.py`.
+- Alternatives considered: promote it to `skills/model-pr-optimization-history/`; convert it to a plain README used only by SOTA; preserve the orphaned hybrid state.
+- Chosen option: promote it to a public analyzer skill, keep dossiers under `reference/pr_history/`, add catalog/routing/install coverage, and have SOTA call it during Learn.
+- Compatibility impact: additive discoverability; dossier paths and the top-level query script remain stable.
+- Rollback method: remove the public skill, catalog item and direct routing case while preserving dossiers and `scripts/query.py`; if direct routing is intentionally retired, replace references with plain reference-document language rather than restoring orphan frontmatter.
+
+### D-010: Keep routing claims at specification level until fresh-task dogfood
+
+- Evidence: tests validate deterministic ownership sets, but Codex runtime routing uses injected skill metadata and does not execute `tests/routing/cases.json` or consume the catalog as a router.
+- Alternatives considered: claim model-routing accuracy from unit tests; mark PR ready after refresh; require observed routing in a fresh task.
+- Chosen option: keep PR #13 Draft and Definition of Done open until a new Codex task records real routing selections against representative prompts.
+- Compatibility impact: none.
+- Rollback method: not applicable; this is an acceptance constraint, not runtime behavior.

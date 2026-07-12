@@ -1,7 +1,8 @@
 # PR12 Skill Inventory
 
-Baseline: `main@8e0a37e` (PR #11), 19 `skills/*/SKILL.md` entries. Phase 3 adds the
-20th entry below as the public facade for the existing control plane.
+Baseline: `main@8e0a37e` (PR #11), 19 `skills/*/SKILL.md` entries. PR12 adds the
+lifecycle facade and promotes the previously orphaned history query entry, producing 21 canonical
+skills.
 
 ## Reading The Inventory
 
@@ -46,13 +47,15 @@ Baseline: `main@8e0a37e` (PR #11), 19 `skills/*/SKILL.md` entries. Phase 3 adds 
 | `capture_fairness_snapshot.py` | normalized host/device snapshots | benchmark references and tests | Internal snapshot helper, not a skill |
 | checksum, fingerprint, projection functions in `xllm_flow.py` | lifecycle integrity | `scripts/xllm_flow.py`, `tests/test_xllm_flow.py` | Internal functions; do not wrap as skills |
 
-## Skill-Like Entry Outside `skills/`
+## Resolved Orphan Entry
 
-`reference/pr_history/SKILL.md` is validated by `tests/test_repository_hygiene.py` and presents
-itself as a skill, but `scripts/init_xllm_workspace.py` installs only direct children of
-`skills/`. Its documented packaged query path also differs from the actual top-level
-`scripts/query.py`. It is therefore outside the 19-skill inventory required by the Issue but is
-install-unreachable and must be covered by catalog/install decisions before Definition of Done.
+The baseline `reference/pr_history/SKILL.md` had an independent history-query goal, inputs and
+outputs, so review selected formal-skill option A. It now lives at
+`skills/model-pr-optimization-history/SKILL.md`, uses the real `scripts/query.py`, is cataloged,
+routed, tested and installed. The alternative was to convert it to a plain reference document;
+that was rejected because direct history retrieval is useful outside SOTA. Rollback removes the
+canonical entry and direct route while leaving dossiers and `scripts/query.py` intact; it must not
+restore the orphaned hybrid state.
 
 ## Phase 0 Answers
 
@@ -65,4 +68,4 @@ install-unreachable and must be covered by catalog/install decisions before Defi
 7. Parser/snapshot/checksum/projection remain ordinary deterministic scripts/functions.
 8. Do not generalize names from declared scope: xLLM is primary, vLLM-Ascend/SGLang support remains adapter/artifact-specific.
 9. Main competing descriptions are SOTA versus benchmark/profiler/pipeline; eval versus perf/accuracy/server; batch versus repeated perf; benchmark versus run-and-compare; incident versus accuracy/profiling.
-10. No `skills/*` entry is completely unreachable. `ssh-remote-exec` is support-only; report writer is mostly delegated. The skill-like `reference/pr_history/SKILL.md` is install-unreachable.
+10. No canonical entry is install-unreachable. `ssh-remote-exec` is support-only and implicit routing is disabled; the history query is now a formal public skill.
