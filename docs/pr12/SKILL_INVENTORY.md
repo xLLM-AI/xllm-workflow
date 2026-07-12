@@ -1,6 +1,7 @@
 # PR12 Skill Inventory
 
-Baseline: `main@8e0a37e` (PR #11), 19 `skills/*/SKILL.md` entries.
+Baseline: `main@8e0a37e` (PR #11), 19 `skills/*/SKILL.md` entries. Phase 3 adds the
+20th entry below as the public facade for the existing control plane.
 
 ## Reading The Inventory
 
@@ -13,6 +14,7 @@ Baseline: `main@8e0a37e` (PR #11), 19 `skills/*/SKILL.md` entries.
 
 | Directory / declared name | Trigger and probable category | Inputs | Outputs / artifacts | Bundled files | Dependencies / callers | Framework / backend scope | Public? and negative intents | Overlap | Preliminary disposition and evidence |
 |---|---|---|---|---|---|---|---|---|---|
+| `xllm-experiment-lifecycle` / same | Create, resume, validate, finalize and archive a run; orchestrator/control plane | experiment spec, run root, checkpoint, evidence verdicts | manifest, checkpoint, fingerprints, attempt ledger, finalized or archived state | no duplicated scripts; facade over `scripts/xllm_flow.py` | Delegates build, service, benchmark and other specialists | xLLM-first lifecycle; adapter artifacts may participate without implying full framework support | Yes for run-state transitions. Not for optimization selection, workload execution, service or profiling | Removes lifecycle ownership from SOTA/eval ambiguity | Add public facade based on five Phase 1 missing-route cases; `skills/xllm-experiment-lifecycle/SKILL.md` |
 | `ssh-remote-exec` / same | SSH, ProxyJump, container and background execution; support | SSH config, host, command, container | stdout/logs, transferred files, process status | no scripts/references | Used by batch, eval, server | Generic remote host; examples are Windows/Ascend oriented | No normal primary route. Not for experiment, benchmark or diagnosis goals | Duplicated remote snippets in callers | Internalize support; `skills/ssh-remote-exec/SKILL.md`, references from batch/eval/server |
 | `xllm-npu-accuracy-debug` / same | Diagnose wrong output or score regression; analyzer/support | prompt, expected/predicted output, logs, commits, A/B artifacts | reproducer, bisect result, root-cause report, validation | 2 references | Called by SOTA, benchmark, eval, accuracy runner | xLLM Ascend; comparisons may use GPU evidence | Yes for diagnosis. Not for simply running CEval | Incident triage includes an accuracy branch; accuracy runner executes measurements | Keep public specialist; `SKILL.md:8-30,52-238` |
 | `xllm-npu-accuracy-runner` / same | Execute one EvalScope accuracy workload; runner | API URL, model, mode, run root, work dir | scores, predictions, failed cases, raw EvalScope data | 1 script | Uses server manager; called by eval/SOTA | xLLM OpenAI-compatible service on NPU | Yes only for explicit accuracy execution; not for diagnosis or mixed evaluation | Eval runner includes it; accuracy-debug consumes failures | Keep distinct runner; investigate visibility; `SKILL.md:10-74` |

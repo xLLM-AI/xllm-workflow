@@ -480,7 +480,7 @@ docs: document workflow skill migration.
 - [x] Phase 0 audit
 - [x] Phase 1 routing baseline
 - [x] Phase 2 taxonomy/catalog
-- [ ] Phase 3 public entry/runner refactor
+- [x] Phase 3 public entry/runner refactor
 - [ ] Phase 4 compatibility aliases
 - [ ] Phase 5 internalization
 - [ ] Phase 6 validation and PR
@@ -526,3 +526,11 @@ docs: document workflow skill migration.
 - Chosen option: make `skills/catalog.json` the single taxonomy source for Phase 2 and keep existing skill behavior unchanged. Do not duplicate metadata in frontmatter. Keep the alias list empty until Phase 4 has evidence for a compatibility mapping.
 - Compatibility impact: none; no skill is renamed, moved, deleted, or newly routed in this phase.
 - Rollback method: revert the Phase 2 catalog, validator, and tests commit.
+
+### D-005: Add a lifecycle facade and preserve independent runner names
+
+- Evidence: Phase 1 cases `lifecycle-create`, `lifecycle-resume`, `lifecycle-finalize`, `lifecycle-archive`, and `internal-evidence` had no public canonical owner; explicit perf-only, accuracy-only, batch, build, service, and report cases each have a distinct outcome.
+- Alternatives considered: make SOTA the lifecycle root; make eval the lifecycle root; add `xllm-experiment-lifecycle`; rename or merge all runners immediately.
+- Chosen option: add `xllm-experiment-lifecycle` as a thin public facade over `scripts/xllm_flow.py`, narrow the four broad orchestrator descriptions, and preserve existing runner names and direct intents.
+- Compatibility impact: additive public entry only. Existing skills remain at the same paths and retain their explicit routes. vLLM-Ascend/SGLang remain adapter- or artifact-level rather than full end-to-end claims.
+- Rollback method: revert the Phase 3 commit; the underlying `xllm-flow` CLI and all prior skill paths remain unchanged.

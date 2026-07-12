@@ -5,7 +5,7 @@ auditable specification backed by `tests/routing/cases.yaml`, not a measured mod
 
 | Intent | Expected primary | Allowed followups | Forbidden primary |
 |---|---|---|---|
-| Create/resume/finalize/archive/evidence lifecycle | Missing public lifecycle route | build/eval/report as required | build, server, report or SSH as lifecycle owner |
+| Create/resume/finalize/archive/evidence lifecycle | `xllm-experiment-lifecycle` | build/eval/report as required | build, server, report or SSH as lifecycle owner |
 | Open-ended performance optimization with code iteration | `xllm-npu-sota-loop` | benchmark, profiler, pipeline, capacity, compute, eval, review | perf runner or build gate |
 | Existing-result fairness, SLA or publishable comparison | `xllm-npu-benchmark` | eval for missing measurements, report writer | raw perf runner |
 | Mixed performance and accuracy suite | `xllm-npu-eval-runner` | server, perf, accuracy, report | benchmark as executor |
@@ -21,5 +21,7 @@ auditable specification backed by `tests/routing/cases.yaml`, not a measured mod
 | Capacity, compute, review or operator work | Corresponding specialist | evidence-producing runners as needed | unrelated low-level gate |
 | Render a completed run with a supplied template | `xllm-npu-report-writer` | none | eval runner |
 
-The matrix deliberately preserves direct runner, build, service and report intents. Phase 3/5 may
-change visibility only when routing cases show that an independent intent has no value.
+The matrix deliberately preserves direct runner, build, service and report intents. Phase 3 added
+the lifecycle facade and narrowed orchestrator descriptions without renaming or hiding those
+independent routes. Phase 5 may change visibility only when routing cases show that an independent
+intent has no value.

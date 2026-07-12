@@ -54,7 +54,9 @@ def test_routing_references_are_auditable():
         for field in ("current_primary_candidates", "allowed_followups", "forbidden_primary"):
             assert set(case[field]) <= names, (case["id"], field)
         assert not set(case["expected_primary"]) & set(case["forbidden_primary"]), case["id"]
-    assert missing_route_cases >= 5
+    assert missing_route_cases == 0
+    lifecycle_cases = [case for case in corpus["cases"] if case["family"] in {"lifecycle", "internal"}]
+    assert all(case["expected_primary"] == ["xllm-experiment-lifecycle"] for case in lifecycle_cases)
 
 
 def test_baseline_records_real_ambiguity_without_fake_accuracy():

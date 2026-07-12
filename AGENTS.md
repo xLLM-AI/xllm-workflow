@@ -90,6 +90,7 @@ when their adapters and runbooks are added.
 
 | Task | Start With |
 |---|---|
+| Create, resume, validate, finalize, or archive an experiment run | `skills/xllm-experiment-lifecycle/SKILL.md` |
 | End-to-end optimization goal | `skills/xllm-npu-sota-loop/SKILL.md` |
 | Build, compile, build gate, NPU gate, or multi-candidate build reuse | `skills/xllm-npu-build-gate/SKILL.md` |
 | End-to-end eval (service + perf + accuracy + report) | `skills/xllm-npu-eval-runner/SKILL.md` |

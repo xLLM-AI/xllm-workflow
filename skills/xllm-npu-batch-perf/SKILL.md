@@ -1,6 +1,6 @@
 ---
 name: xllm-npu-batch-perf
-description: xLLM NPU 批量性能评测编排器。对多个模型（不同尺寸、不同 TP 配置）循环执行"启动服务 → evalscope 性能测试 → 停止服务"流程，自动收集所有结果。
+description: xLLM NPU 批量性能 campaign 编排器。仅用于多个模型、多个 TP/配置或显式重复轮次的矩阵任务，循环执行服务与性能测试并汇总；单个 ready 服务的一次性能测试使用 perf-runner，公平性或收益结论使用 benchmark，混合性能与精度套件使用 eval-runner。
 ---
 
 # xLLM NPU 批量性能评测编排器

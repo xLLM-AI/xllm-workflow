@@ -42,3 +42,14 @@ Each Phase 3-5 change must name the affected case IDs. The final result passes w
 3. internal/compatibility entries never appear as implicit primary;
 4. all allowed and forbidden references resolve through the catalog;
 5. no expected route overclaims framework/backend support.
+
+## Phase 3 Result
+
+- All five lifecycle sentinel cases now resolve uniquely to `xllm-experiment-lifecycle`.
+- The original `current_primary_candidates` remain in the corpus as the before snapshot.
+- SOTA is limited to open-ended optimization with measurable code iteration.
+- Eval owns a mixed performance-and-accuracy suite; perf and accuracy runners retain explicit
+  one-workload routes; batch owns only matrix or repeated campaigns; benchmark owns fairness and
+  publishable conclusions.
+- No probabilistic model-routing accuracy is claimed. The improvement is the removal of five
+  missing canonical routes and a deterministic, test-enforced ownership boundary.

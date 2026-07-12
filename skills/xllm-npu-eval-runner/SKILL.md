@@ -1,6 +1,6 @@
 ---
 name: xllm-npu-eval-runner
-description: xLLM NPU EvalScope 测评执行器。用于对已确定的 OpenAI-compatible 服务运行 evalscope 性能测评、精度测评并收集原始 artifacts。本 skill 不负责启动脚本开发、构建验证或服务事故诊断；构建门禁交给 xllm-npu-build-gate，公平性和基线对比交给 xllm-npu-benchmark，精度根因分析交给 xllm-npu-accuracy-debug，msprof 分析交给 xllm-npu-profiler，编译失败诊断交给 xllm-npu-incident-triage。
+description: xLLM NPU EvalScope 混合测评编排器。仅在同一任务需要服务、性能、精度和完整 artifacts 时使用；ready 服务上的单项性能或精度执行应使用对应 runner，多配置 campaign 使用 batch-perf，公平性和 before/after 结论使用 benchmark，run 创建/恢复/finalize 使用 xllm-experiment-lifecycle。
 ---
 
 # xLLM NPU EvalScope 测评执行器

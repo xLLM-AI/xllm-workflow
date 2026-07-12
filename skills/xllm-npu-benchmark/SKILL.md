@@ -1,6 +1,6 @@
 ---
 name: xllm-npu-benchmark
-description: 在昇腾 NPU 上进行 xLLM、vLLM-Ascend、SGLang NPU 等 OpenAI-compatible serving 框架的公平推理基准测试和性能结论审查。当用户需要比较框架、比较 before/after、搜索满足 TTFT/TPOT/SLA 的最大 QPS、判断 benchmark 是否可写入 PR 或报告时使用。当前脚本优先支持 xLLM 与 vLLM-Ascend 对比，可扩展到更多框架。
+description: 昇腾 NPU 推理 benchmark 政策与结论入口。用于审查已有或委托采集的 before/after、跨框架公平性、TTFT/TPOT SLA 最大 QPS 和可发布性能声明；不负责单次原始 EvalScope 执行、混合精度评测或 profiler 根因分析。当前完整路径以 xLLM 为主，vLLM-Ascend/SGLang 仅支持明确标注的 adapter 或 artifact 场景。
 ---
 
 # xLLM NPU 基准测试

@@ -1,6 +1,6 @@
 ---
 name: xllm-npu-sota-loop
-description: 系统化推进 xLLM NPU 性能优化闭环，从目标定义、基线、profiling、实现、review、验证到最终沉淀。适用于需要持续提升 xLLM NPU 推理性能或建立可复用优化流程的任务。
+description: 系统化推进 xLLM NPU 性能优化闭环。仅用于有可量化目标、允许修改代码并需要多轮 baseline、profiling、实现和 A/B 验证的开放式优化任务；单次 benchmark 审查、固定 workload 执行、已有 profile 分析、run 创建/恢复/finalize 或事故复现应使用对应专项 skill。
 ---
 
 # xLLM NPU SOTA 优化闭环
