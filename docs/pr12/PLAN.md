@@ -470,7 +470,7 @@ docs: document workflow skill migration.
 - [x] vLLM-Ascend/SGLang 仍明确标为实验性 adapter，未过度宣称。
 - [x] 文档、catalog、SKILL descriptions 与安装链接一致。
 - [x] review-fix 后的 full tests、routing tests、refresh、smoke、diff check 全部通过。
-- [ ] 在全新 Codex task 中完成真实 routing dogfood，并记录 observed route 与 specification 的差异。
+- [x] 在全新 Codex task 中完成真实 routing dogfood，并记录 observed route 与 specification 的差异。
 - [x] 创建 Draft PR，标题符合规范并以句点结尾。
 - [x] Draft PR 正文包含 before/after routing matrix、兼容说明、测试结果和剩余限制。
 
@@ -486,7 +486,7 @@ docs: document workflow skill migration.
 - [x] Phase 5 internalization
 - [x] Phase 6 validation and PR ([Draft PR #13](https://github.com/xLLM-AI/xllm-workflow/pull/13))
 - [x] Architecture review blocking fixes
-- [ ] Fresh-task Codex routing dogfood
+- [x] Fresh-task Codex routing dogfood (14/14 observed primary matches)
 
 ## Decision Log
 
@@ -577,3 +577,20 @@ docs: document workflow skill migration.
 - Chosen option: keep PR #13 Draft and Definition of Done open until a new Codex task records real routing selections against representative prompts.
 - Compatibility impact: none.
 - Rollback method: not applicable; this is an acceptance constraint, not runtime behavior.
+
+### D-011: Accept the refreshed routing taxonomy from isolated dogfood evidence
+
+- Evidence: `docs/pr12/ROUTING_DOGFOOD.md` records 14 isolated fresh-task probes captured before
+  reading `expected_primary`; 14/14 observed primaries match, lifecycle create/resume/finalize are
+  3/3, ordinary prompts select `ssh-remote-exec` zero times, explicit `$ssh-remote-exec` remains
+  selectable, and internal skills appear as implicit primary zero times. Catalog validation passes,
+  the full suite reports 159 passed, and `git diff --check` passes.
+- Alternatives considered: change SKILL descriptions without a mismatch; alter expected routes to
+  fit observations; accept the observed 100% result without modifying routing metadata.
+- Chosen option: preserve the current skill taxonomy and routing descriptions, add only the sealed
+  dogfood evidence and validation status, keep PR #13 Draft, and hand it to human review without
+  marking it Ready for Review.
+- Compatibility impact: none; no skill, runtime, catalog, expected route, or invocation policy was
+  changed.
+- Rollback method: revert the dogfood documentation commit; the routing implementation and prior
+  validation remain unchanged.
