@@ -27,3 +27,8 @@ def test_query_supports_path_filter():
     out = run_query("--framework", "xllm", "--path", "MTPWorkerImpl::run_validate")
     assert "qwen35-mtp.md" in out
     assert "MTPWorkerImpl::run_validate" in out
+
+
+def test_flat_qwen3_dossier_has_xllm_framework_identity():
+    out = run_query("--model", "Qwen3 1.7B")
+    assert "xllm/qwen3-1p7b" in out

@@ -1,0 +1,7 @@
+interface:
+  display_name: "SSH Remote Execution"
+  short_description: "Run delegated commands on remote hosts safely"
+  default_prompt: "Use $ssh-remote-exec to execute this explicitly requested remote command with safe quoting and artifact capture."
+
+policy:
+  allow_implicit_invocation: false

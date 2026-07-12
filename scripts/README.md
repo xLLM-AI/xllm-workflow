@@ -25,8 +25,11 @@
 
 ```bash
 cp reference/io_specs/experiment.example.yaml experiment.yaml
-python scripts/xllm_flow.py preflight --spec experiment.yaml --output runs/example/env
-python scripts/xllm_flow.py run create --spec experiment.yaml
+WORKSPACE_ROOT=/path/to/workspace
+REGISTRY="$WORKSPACE_ROOT/workspace-tasks.json"
+python scripts/xllm_flow.py preflight --spec experiment.yaml --output runs/example-campaign/env
+python scripts/xllm_flow.py --workspace-root "$WORKSPACE_ROOT" --registry "$REGISTRY" \
+  run create --spec experiment.yaml
 python scripts/xllm_flow.py attempt add --run-root runs/example-campaign --spec experiment.yaml \
   --attempt-id baseline-r0 --phase benchmark --status pass --hypothesis baseline \
   --metrics-json runs/example-campaign/reports/metrics.json \
@@ -41,13 +44,19 @@ python scripts/xllm_flow.py attempt add --run-root runs/example-campaign --spec 
   --artifact reports/candidate-comparison.json --decision accept --repeat-index 0
 python scripts/xllm_flow.py run validate --run-root runs/example-campaign --status pass
 python scripts/xllm_flow.py export evidence --run-root runs/example-campaign
-python scripts/xllm_flow.py export fairness-candidate --run-root runs/example-campaign \
-  --name candidate
 python scripts/xllm_flow.py gate all --run-root runs/example-campaign \
-  --require build --require service --require evidence --formal
-python scripts/xllm_flow.py run finalize --run-root runs/example-campaign --status pass \
+  --require build --require service --require evidence
+python scripts/xllm_flow.py --workspace-root "$WORKSPACE_ROOT" \
+  run finalize --run-root runs/example-campaign --status pass \
   --reviewed-by "$USER" --retention-decision keep --kept-path reports/metrics.json
+python scripts/xllm_flow.py --workspace-root "$WORKSPACE_ROOT" --registry "$REGISTRY" \
+  run archive --task-id example-task
 ```
+
+上例 spec 的 evidence level 是 `quick`，因此不使用 `--formal`。只有 level 为 `full`、
+`formal-pr` 或 `sota-report` 时才可执行 formal evidence gate。公平对比还必须先导出
+fairness candidate，并向 `gate all` 同时传入 `--require fairness` 和实际
+`--fairness-root`；不得导出后不消费。
 
 工作区任务注册表可从现有 worktree 幂等生成：
 

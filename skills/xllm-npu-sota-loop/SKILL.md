@@ -1,6 +1,6 @@
 ---
 name: xllm-npu-sota-loop
-description: 系统化推进 xLLM NPU 性能优化闭环，从目标定义、基线、profiling、实现、review、验证到最终沉淀。适用于需要持续提升 xLLM NPU 推理性能或建立可复用优化流程的任务。
+description: 系统化推进 xLLM NPU 性能优化闭环。仅用于有可量化目标、允许修改代码并需要多轮 baseline、profiling、实现和 A/B 验证的开放式优化任务；单次 benchmark 审查、固定 workload 执行、已有 profile 分析、run 创建/恢复/finalize 或事故复现应使用对应专项 skill。
 ---
 
 # xLLM NPU SOTA 优化闭环
@@ -46,7 +46,7 @@ python scripts/xllm_flow.py run create --spec experiment.yaml
 改代码前先查模型和 PR 历史：
 
 ```text
-Use `reference/pr_history/` to query prior work for <model_name>,
+Use `model-pr-optimization-history` to query `reference/pr_history/` for prior work on <model_name>,
 related operators, risky source paths, failed attempts, and known validations.
 ```
 
@@ -213,7 +213,7 @@ Record:   更新 run ledger 和可复用 reference
 | 阶段 | 推荐 skill | 产物 |
 |---|---|---|
 | Research | `xllm-npu-benchmark`, `xllm-npu-profiler`, `xllm-npu-pipeline-analysis`, `xllm-npu-capacity-planner`, `xllm-npu-compute-simulation`, `xllm-npu-accuracy-debug` | 证据摘要 |
-| Learn | `reference/pr_history/` | 相关历史和风险 |
+| Learn | `model-pr-optimization-history` | 相关历史和风险 |
 | Code | `xllm-npu-triton-migration`, `xllm-npu-xllm-ops-integration`, 目标仓库本地 skill | 一个 patch 或实验 |
 | Review | `xllm-npu-code-review`, 目标仓库 review 规则 | 分级 review findings |
 | Validate | `xllm-npu-eval-runner`, `xllm-npu-benchmark`, `xllm-npu-profiler`, `xllm-npu-accuracy-debug`, `xllm-npu-incident-triage` | 验证报告 |

@@ -67,6 +67,9 @@ codex
 正式工作遵循 `target → baseline → profiling → patch → accuracy → performance → record`。
 Skill 路由见 [AGENTS.md](AGENTS.md)，Phase 详情见 [docs/npu-ai-coding-standard-workflow.md](docs/npu-ai-coding-standard-workflow.md)。
 
+实验控制面统一从 `xllm-experiment-lifecycle` 进入；开放式性能优化使用
+`xllm-npu-sota-loop`，单次评测、benchmark 结论和 profiling 分析继续使用各自专项 skill。
+
 ## 2 目录一览
 
 ```text

@@ -72,6 +72,10 @@ framework, workload, and target metrics.
 Formal work follows `target → baseline → profiling → patch → accuracy → performance → record`.
 See [AGENTS.md](AGENTS.md) for skill routing and [docs/npu-ai-coding-standard-workflow.md](docs/npu-ai-coding-standard-workflow.md) for phase details.
 
+Use `xllm-experiment-lifecycle` for the experiment control plane. Use
+`xllm-npu-sota-loop` only for open-ended performance optimization, while one-shot evaluation,
+benchmark conclusions, and profiling remain specialist routes.
+
 ## 2 Directory Overview
 
 ```text

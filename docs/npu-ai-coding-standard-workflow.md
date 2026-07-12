@@ -143,7 +143,7 @@ Relevant skills:
 
 - `skills/xllm-npu-sota-loop/SKILL.md`
 - `skills/xllm-npu-code-review/SKILL.md`
-- `reference/pr_history/SKILL.md`
+- `skills/model-pr-optimization-history/SKILL.md`
 
 ## Phase 6: Record
 

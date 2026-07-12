@@ -1,6 +1,6 @@
 ---
 name: ssh-remote-exec
-description: SSH 远程执行能力。通过 SSH 连接远程 NPU 服务器，支持 ProxyJump 跳板机、SSH_ASKPASS 密码认证、docker exec 容器内执行、后台任务与日志轮询。所有需要远程执行命令的 skill 应引用本 skill。
+description: 内部 SSH 远程执行能力。供其他 workflow skill 委托连接远程 NPU 服务器、ProxyJump、docker exec、后台任务与日志轮询；不参与实验、benchmark、服务或事故请求的隐式主路由。仅在用户显式调用 $ssh-remote-exec 执行远程命令时可直接使用。
 ---
 
 # SSH 远程执行

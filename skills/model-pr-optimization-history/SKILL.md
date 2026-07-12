@@ -1,12 +1,12 @@
 ---
 name: model-pr-optimization-history
-description: 查询 xLLM 历史 PR 中的优化信息，辅助当前模型的优化决策。
+description: 查询 xLLM 模型 dossier 和历史 PR 中的优化、风险与验证记录。用于独立回答“某模型或代码路径历史上改过什么、有哪些失败经验和后续检查”等问题，也供 xllm-npu-sota-loop 的 Learn 阶段调用；不负责选择或执行新的性能优化。
 ---
 
 # 模型 PR 优化历史
 
 通过查询本地模型档案和历史 PR 经验，获取模型相关的优化、风险和验证记录，
-避免重复工作。该 skill 是 evidence loop 中的 Learn 阶段入口。
+避免重复工作。该 skill 可以独立响应历史查询，也是 evidence loop 中的 Learn 阶段入口。
 
 ## 使用场景
 
@@ -22,13 +22,13 @@ description: 查询 xLLM 历史 PR 中的优化信息，辅助当前模型的优
 
 ```bash
 # 按模型查询
-python model-pr-optimization-history/scripts/query.py --model Qwen3.5
+python scripts/query.py --model Qwen3.5
 
 # 按关键词查询
-python model-pr-optimization-history/scripts/query.py --keyword mtp --keyword graph
+python scripts/query.py --keyword mtp --keyword graph
 
 # 按框架和代码路径查询
-python model-pr-optimization-history/scripts/query.py \
+python scripts/query.py \
     --framework xllm \
     --path MTPWorkerImpl::run_validate \
     --verbose
@@ -36,8 +36,8 @@ python model-pr-optimization-history/scripts/query.py \
 
 ### Step 2: 整理优化历史
 
-将查询结果整理为模型档案，存入 `<framework>/<model>.md`。字段参考
-`references/card-schema.md`：
+将经过验证的新结论整理到 `reference/pr_history/<model>.md`。字段参考
+`reference/pr_history/card-schema.md`：
 
 ```markdown
 ## Case: <short title>
@@ -68,9 +68,9 @@ python model-pr-optimization-history/scripts/query.py \
 
 ## 模型档案目录
 
-- `model-pr-optimization-history/xllm/deepseek-v3.md` — DeepSeek-V3 (MoE)
-- `model-pr-optimization-history/xllm/qwen35-mtp.md` — Qwen3.5 / Qwen3 Next / Qwen3.6 / MTP / graph / VLM / PD
-- `model-pr-optimization-history/xllm/glm-5.md` — GLM-5 系列
+- `reference/pr_history/deepseek-v3.md` — DeepSeek-V3 (MoE)
+- `reference/pr_history/qwen35-mtp.md` — Qwen3.5 / Qwen3 Next / Qwen3.6 / MTP / graph / VLM / PD
+- `reference/pr_history/glm-5.md` — GLM-5 系列
 
 ## 维护
 
