@@ -12,6 +12,7 @@
 | 多轮迭代优化 xLLM 性能 | `xllm-npu-sota-loop` |
 | 执行性能与精度混合套件 | `xllm-npu-eval-runner` |
 | 执行一次性能或精度 workload | `xllm-npu-perf-runner` 或 `xllm-npu-accuracy-runner` |
+| 启动、验证、smoke 并清理服务 | `xllm-npu-server-manager` |
 | 审查公平性或可发布性能结论 | `xllm-npu-benchmark` |
 | 采集或分析 profiling 证据 | `xllm-npu-profiler` 或 `xllm-npu-pipeline-analysis` |
 | 诊断错误输出或 runtime/build 事故 | `xllm-npu-accuracy-debug` 或 `xllm-npu-incident-triage` |

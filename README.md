@@ -12,6 +12,7 @@ Evidence-driven workflows, skills, scripts, and reference knowledge for large-mo
 | Optimize xLLM performance through multiple iterations | `xllm-npu-sota-loop` |
 | Run a mixed performance and accuracy suite | `xllm-npu-eval-runner` |
 | Run one performance or accuracy workload | `xllm-npu-perf-runner` or `xllm-npu-accuracy-runner` |
+| Launch, verify, smoke-test, and clean up a service | `xllm-npu-server-manager` |
 | Review fairness or a publishable performance claim | `xllm-npu-benchmark` |
 | Collect or analyze profiling evidence | `xllm-npu-profiler` or `xllm-npu-pipeline-analysis` |
 | Diagnose wrong output or a runtime/build incident | `xllm-npu-accuracy-debug` or `xllm-npu-incident-triage` |

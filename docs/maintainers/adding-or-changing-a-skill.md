@@ -57,6 +57,11 @@ Root `README.md`, `README_zh.md`, `docs/README.md`, and architecture prose are c
 
 Use the mode that matches the agent launch location:
 
+| Agent starts from | Refresh command |
+|---|---|
+| This workflow repository | `python scripts/init_xllm_workspace.py` |
+| The xLLM checkout | `python scripts/init_xllm_workspace.py --mode xllm --agent codex` |
+
 ```bash
 python scripts/init_xllm_workspace.py
 python scripts/init_xllm_workspace.py --mode xllm --agent codex

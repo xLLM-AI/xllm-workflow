@@ -12,6 +12,7 @@ Use this page to find current operating guidance. Documents under `docs/pr12/` a
 
 - [Experiment lifecycle](../skills/xllm-experiment-lifecycle/SKILL.md)
 - [Performance optimization](../skills/xllm-npu-sota-loop/SKILL.md)
+- [Service-only lifecycle](../skills/xllm-npu-server-manager/SKILL.md)
 - [Mixed evaluation](../skills/xllm-npu-eval-runner/SKILL.md) and [benchmark review](../skills/xllm-npu-benchmark/SKILL.md)
 - [Profiling](../skills/xllm-npu-profiler/SKILL.md), [pipeline analysis](../skills/xllm-npu-pipeline-analysis/SKILL.md), and [incident diagnosis](../skills/xllm-npu-incident-triage/SKILL.md)
 - [Operator migration](../skills/xllm-npu-triton-migration/SKILL.md) and [runtime integration](../skills/xllm-npu-xllm-ops-integration/SKILL.md)
@@ -34,7 +35,7 @@ Support labels used throughout the documentation:
 
 - [Add or change a skill](maintainers/adding-or-changing-a-skill.md)
 - [Deterministic scripts](../scripts/README.md)
-- [Catalog-generated views](../scripts/render_skill_docs.py)
+- [Catalog and generated-document workflow](maintainers/adding-or-changing-a-skill.md#6-render-generated-documentation)
 - [Agent constraints and routing contract](../AGENTS.md)
 
 ## Design history
