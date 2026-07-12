@@ -19,9 +19,12 @@
 2. 修改代码前必须采集带 warmup 的 baseline 性能数据。
 3. 修改代码前必须采集能解释瓶颈的 profiling，profiling run 不直接当正式性能结论。
 4. 查询 model-pr-optimization-history，确认历史上是否已有类似优化或失败经验。
-5. 每轮 evidence loop 只实现一个可验证优化点。
-6. 每轮都执行 code review、精度验证、带 warmup 的性能验证；必要时补 profiling。
-7. 达到目标或满足停止条件后，输出最终对比表和经验沉淀位置。
+5. 先生成端到端 bottleneck budget 和候选排序，优先处理最大可行动损失项。
+6. 按 L0 架构算法、L1 pipeline、L2 operator、L3 kernel 从大到小检查；L0-L2
+   未量化或未被证据否决前，不得进入微优化。
+7. 每轮只验证一个根因假设，但允许跨模块；不要把“单一假设”误解成最小改动。
+8. 每轮都执行 code review、精度验证、带 warmup 的性能验证；必要时补 profiling。
+9. 达到目标或满足停止条件后，输出最终对比表和经验沉淀位置。
 ```
 
 ## 场景 2：TPOT 目标优化到指定阈值
@@ -40,11 +43,15 @@
 
 流程：
 1. 先跑 baseline，输出 TTFT/TPOT/TPS、P50/P90/P99、NPU 空闲情况。
-2. 采集 decode-focused profiling，重点看两轮 decode 中间的 hostbound gap。
-3. 给出候选优化点排序：预期收益、风险、修改文件、验证方式。
-4. 实现收益最高且风险最低的一项，验证精度和性能。
-5. 若未达到 <target_tpot_ms> ms，继续下一轮，不要在没有数据时停。
-6. 每轮记录成功/失败原因，最终更新 run ledger 或 skill reference。
+2. 先做完整 decode-step 粗粒度归因，不要默认 host gap 是最大问题。
+3. 输出 loss budget：main compute、communication、host、graph/sync、copy、sampling。
+4. 给出候选排序：影响预算、可消除比例、端到端收益区间、风险和验证方式。
+5. 实现端到端预期收益最高的可行动项，验证精度和性能。
+6. 若候选收益上限小于剩余差距的 20%，进入最多两轮有明确测量目标的 DISCOVERY；
+   之后必须 PASS、BLOCKED 或记录理由后 EXEMPT，不得无限重新归因。
+7. 只有 Big-Rock Gate 为 PASS/EXEMPT 才进入实现；BLOCKED 时停止并报告依赖。
+8. 若未达到 <target_tpot_ms> ms，更新 loss budget 后继续，不机械重复同一层级。
+9. 每轮记录成功/失败原因，最终更新 run ledger 或 skill reference。
 ```
 
 ## 场景 3：decode 空泡专项分析

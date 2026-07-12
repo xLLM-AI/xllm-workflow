@@ -4,6 +4,9 @@ Profiling runs explain bottlenecks; they are not steady-state performance
 measurements. Keep capture, workload, analysis, and human timeline notes
 together.
 
+Formal profiling evidence must also provide `run-evidence.json` and pass
+`scripts/validate_run_evidence.py` before its diagnosis is promoted into a shared lesson.
+
 Recommended directory:
 
 ```text

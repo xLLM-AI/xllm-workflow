@@ -4,6 +4,10 @@ Every formal xLLM NPU evaluation, profiling, accuracy, incident, or optimization
 run should include a manifest. The manifest is the first file to inspect when
 deciding whether a result is comparable and reproducible.
 
+For formal machine validation, also write `run-evidence.json` according to
+[`run-evidence-schema.md`](run-evidence-schema.md). Markdown is the human narrative;
+the JSON document is the source of truth consumed by `scripts/validate_run_evidence.py`.
+
 ```markdown
 # Run Manifest
 
@@ -97,6 +101,9 @@ deciding whether a result is comparable and reproducible.
 - profiling_artifact_dir:
 - metrics_json:
 - report_md:
+- run_evidence_json:
+- evidence_verdict_json:
+- artifact_index_json:
 
 ## Comparison
 
@@ -122,3 +129,6 @@ Rules:
   of the experiment.
 - Profiling runs are not directly comparable with non-profiling performance
   runs; use them for root-cause analysis.
+- Repeated service starts must use immutable attempt directories. Do not overwrite
+  a prior attempt's command, PID file, healthcheck, smoke response, cleanup verdict,
+  or service logs.

@@ -105,6 +105,20 @@ runs/               → Execution workspace (gitignored)
 
 **`skills/`** contains procedural agent skills, each with a SKILL.md defining the execution workflow, evidence contracts, and local references. Mode 1 links them into generated `.agents/skills`; Mode 2 links them into the selected agent skills directory.
 
+### Unified Task And Run Lifecycle
+
+New experiments use
+[`experiment.example.yaml`](reference/io_specs/experiment.example.yaml) as the
+single parameter source and `scripts/xllm_flow.py` for task registration,
+preflight, run creation, checkpoints, finalization, and archival. Existing run
+directories do not move; `workspace-tasks.json` records task, source, branch,
+run root, and lifecycle state for new work.
+
+`preflight` validates source identity, submodules, binary dependencies, model
+paths, ports, tools, environment versions, and baseline fairness. Attempts are
+fingerprinted and hash-chained; finalization validates required evidence and
+emits checksums, checkpoint state, retention metadata, and derived ledgers.
+
 ## 3 Typical Workflow
 
 ![xLLM AI Coding Workflow](docs/assets/xllm-ai-coding-workflow-en.png)
@@ -112,6 +126,10 @@ runs/               → Execution workspace (gitignored)
 An evidence-driven loop: each optimization starts from a measurable target,
 collects comparable data, makes one reviewable change, and leaves artifacts
 for reproduction.
+
+End-to-end goals first build a coarse loss budget and rank architecture,
+pipeline, operator, and kernel candidates in that order. Micro-optimization is
+locked until larger scopes are quantified or rejected with evidence.
 
 ## 4 Contribution Guidelines
 

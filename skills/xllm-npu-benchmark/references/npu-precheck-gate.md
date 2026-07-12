@@ -43,6 +43,10 @@ pgrep -af 'xllm|vllm|sglang|python|evalscope|msprof' | tee "$RUN_ROOT/env/proces
 - evalscope 客户端、服务端和 profiling 不要混跑；msprof 采集 run 只用于 profiling 分析，不和无 profiling 性能数直接对比。
 - evalscope 正式性能测试必须使用请求级 warmup，例如 `--warmup-num 1` 或 `--warmup-num 2`。`--warmup-num 0` 只能用于冷启动/首请求分析。
 
-## 经验记录
+将采集结果归一化为
+[`fairness-evidence-schema.md`](fairness-evidence-schema.md)，再运行可执行公平性门禁。
+具体模型、PR、日期和观测数值只进入对应 run ledger 或模型历史，不进入通用判定规则。
 
-2026-05-28，Qwen35-27B TP=4 MTP=3 复用 `causal_conv1d` 验证前，目标逻辑卡 0-3 的服务空闲态 `AICore=0%`，但 HBM 仍在 76%-77%，且 `npu-smi info` 进程表中存在多个 `ps` 查不到的历史 PID。该状态只能说明服务当前未计算，不能证明环境干净；在这种环境下得到的 evalscope TPOT 不能作为 PR #1536 的最终性能证据。正确流程是先记录门禁结果，清理残留 context 或换用干净卡，再重启服务进行同参数 A/B 测试。
+优先使用 `../scripts/capture_fairness_snapshot.py` 同时保存 raw 和 normalized artifacts。
+仅在采集器不支持当前 `npu-smi` 格式时保留上述手工命令作为诊断手段；不得手工填写
+缺失的 health、usage 或 PID ownership 字段。

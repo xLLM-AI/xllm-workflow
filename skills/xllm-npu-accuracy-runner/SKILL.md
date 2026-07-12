@@ -65,6 +65,10 @@ bash <skill_dir>/scripts/eval_acc.sh
 失败样本、score 文件和简短 `report.md`。artifact 结构遵循
 [`../../reference/io_specs/accuracy-artifact-schema.md`](../../reference/io_specs/accuracy-artifact-schema.md)。
 
+正式精度 run 必须把 prompt template、dataset/request order、answer extractor、binary
+和 service attempt 写入 `run-evidence.json`，并通过 `scripts/validate_run_evidence.py`。
+缺少任一 fingerprint 时只能作为 smoke/debug，不能复用为后续 binary/config 的精度 PASS。
+
 ## 脚本
 
 - **精度测试**：`scripts/eval_acc.sh`

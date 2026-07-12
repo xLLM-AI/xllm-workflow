@@ -20,6 +20,9 @@ description: 昇腾 NPU 910B3 (A3) 上的 xLLM 推理 Profiling 分析。提供�
 run 元信息遵循
 [`../../reference/io_specs/run-manifest-template.md`](../../reference/io_specs/run-manifest-template.md)。
 Profiling run 用于解释瓶颈，不直接替代无 profiling 的 before/after 性能数据。
+采集结束后还必须生成 `run-evidence.json` 并运行
+`scripts/validate_run_evidence.py`；缺 `PROF_*`、export、warmup 证明、父 PID、成功 workload
+或一致 binary provenance 时，统一输出 `INCONCLUSIVE`，不得晋升为共享优化经验。
 
 当 profiling 结论涉及 decode-step gap、graph replay gap、host bubble、pipeline
 边界或 xLLM/vLLM-Ascend pipeline 差异时，必须联动

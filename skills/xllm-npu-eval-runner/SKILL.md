@@ -138,8 +138,14 @@ uptime > "$RUN_ROOT/env/load.before.txt"
 
 ### 构建前置验证
 
-如果测评前需要编译验证（build gate、NPU 门禁、多候选构建复用），
-参考 [`xllm-npu-build-gate`](../xllm-npu-build-gate/SKILL.md) skill。
+启动服务前必须消费
+[`xllm-npu-build-gate`](../xllm-npu-build-gate/SKILL.md) 生成的
+`$RUN_ROOT/build/verdict.json` 和 `binary-provenance.json`：
+
+1. 只有 `status=PASS`、`binary_ready=true` 才能继续。
+2. `XLLM_BIN` 必须等于 provenance 中记录的 binary path，并把 SHA256 写入 manifest。
+3. `BLOCKED` 时停止测评并补齐环境；`FAILED` 时连同 `build.log` 交给 incident-triage。
+4. 不得在 eval-runner 内手工修改 submodule、CMake cache、OPP 或构建环境来绕过 gate。
 
 ## 宿主机调度容器模式
 
@@ -259,6 +265,24 @@ $RUN_ROOT/
 
 报告需要说明执行了什么、原始 artifacts 存在哪里，以及本次 run 是否足够支撑正式结论。
 如果只是 smoke run，必须明确说明。
+
+### Evidence verdict
+
+写报告前按
+[`../../reference/io_specs/run-evidence-schema.md`](../../reference/io_specs/run-evidence-schema.md)
+生成 `$RUN_ROOT/run-evidence.json`，然后执行：
+
+```bash
+python scripts/validate_run_evidence.py --run-root "$RUN_ROOT"
+```
+
+只有 `evidence-verdict.json` 为 `PASS` 且 `claim_scope=formal` 才能给 formal claim。`INCONCLUSIVE` 只能用于
+smoke/debug；`BLOCKED` 必须停止后续结论生成。具体模型或某次 incident 的特判不得写入
+通用 evidence contract。
+
+服务必须由 `xllm-npu-server-manager` 生成不可覆盖的 attempt artifacts。不要用手工
+`curl /models` 代替模型身份 ready gate 或真实生成 smoke gate；cleanup 未证明
+`npu_quiescence=PASS` 时不得给 formal claim。
 
 ## 可选：从 GitHub 获取 Baseline
 

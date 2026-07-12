@@ -2,15 +2,15 @@
 
 ## 硬件一致性
 
-- 相同 NPU 型号：必须同为 910B3 (A3)
+- 相同 NPU 型号和硬件 fingerprint
 - 相同 NPU 数量：对比双方使用相同卡数
 - 相同 `ASCEND_RT_VISIBLE_DEVICES`：可见设备列表一致
-- 记录 NPU 驱动版本（HDK Driver >= 25.2.0）
+- 记录并比较 NPU 驱动版本
 - 性能测试前后必须保存 `npu-smi info` 和目标卡 `npu-smi info -t usages`，确认目标卡没有外部计算或未知 HBM 占用
 
 ## 软件环境
 
-- 记录 CANN 版本（>= 8.0.RC1）
+- 记录并比较 CANN 版本
 - 记录框架 commit hash
 - 记录 Docker 镜像（如适用）
 - 记录 Python 版本和 torch_npu 版本

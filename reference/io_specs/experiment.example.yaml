@@ -1,0 +1,91 @@
+version: 1
+identity:
+  task_id: example-task
+  purpose: compare one candidate against a fixed baseline
+  kind: performance_optimization
+  level: quick
+  workspace_root: ..
+  run_root: runs/example-campaign
+code:
+  framework: xllm
+  repo: code/xllm
+  branch: main
+  commit: REPLACE_WITH_COMMIT
+  base_commit: ""
+  allow_dirty: false
+  patches: []
+  build_command: python setup.py build --device npu
+  binary: code/xllm/build/lib.linux-aarch64-cpython-311/xllm/xllm
+model:
+  name: example-model
+  path: /models/example-model
+  tokenizer: /models/example-model
+  dtype: bfloat16
+  quantization: none
+  draft_model: ""
+  speculative_tokens: 0
+service:
+  tensor_parallel: 2
+  pipeline_parallel: 1
+  devices: [0, 1]
+  host: localhost
+  port: 18000
+  hccl_port: 18100
+  flags: {}
+workload:
+  dataset: random
+  dataset_path: ""
+  input_tokens: 2000
+  output_tokens: 200
+  parallel: 1
+  number: 5
+  warmup: 2
+  stream: true
+  sampling:
+    temperature: 0
+    top_p: 1
+    top_k: null
+    ignore_eos: true
+    seed: 1
+evaluation:
+  accuracy:
+    enabled: true
+    dataset: ceval
+    minimum_score: null
+  performance:
+    repetitions: 3
+    noise_threshold_pct: 3
+    sla: {}
+profiling:
+  enabled: true
+  tool: msprof
+  phase: decode
+  boundary: graph replay to graph replay
+  quantitative: false
+environment:
+  require_npu: true
+  require_clean_submodules: true
+  required_tools: [evalscope, msprof]
+  expected:
+    cann: ""
+    driver: ""
+    torch: ""
+    torch_npu: ""
+evidence:
+  type: performance
+  level: quick
+  service_attempt_id: attempt-001
+  fairness:
+    before: env/fairness-before.json
+    idle: [env/fairness-idle-0.json]
+    after: env/fairness-after.json
+comparison:
+  baseline_run_id: ""
+  baseline_manifest: ""
+  changed_variables: []
+artifacts:
+  save_git_diff: true
+  required: [manifest.json, CHECKPOINT.md, attempts.jsonl]
+retention:
+  raw_profiles: review-required
+  keep_failed_attempts: true

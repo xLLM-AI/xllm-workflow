@@ -11,12 +11,94 @@
 - `collect_evalscope_results.py` — 收集并标准化 evalscope 评测结果
 - `compare_npu_benchmark.py` — 跨框架 NPU 性能对比
 - `validate_framework_cli.py` — 验证框架 CLI 参数合法性
+- `validate_run_evidence.py` — 校验 performance/accuracy/profiling 的机器可读证据、
+  build/binary/service identity 和 artifact 完整性，输出 `PASS/INCONCLUSIVE/BLOCKED`
+- `../skills/xllm-npu-server-manager/scripts/service_lifecycle.py` — 为每次服务 attempt
+  生成 launch/ready/smoke/cleanup 生命周期证据
+- `../skills/xllm-npu-benchmark/scripts/benchmark_fairness_gate.py` — 校验候选间身份一致性、
+  环境污染和显式 campaign policy，输出 `fairness-verdict.json`
+- `../skills/xllm-npu-benchmark/scripts/capture_fairness_snapshot.py` — 采集 NPU usage、
+  health、PID ownership、host load/swap 和原始命令输出，生成规范化环境 snapshot
+- `xllm_flow.py` — 配置驱动的任务注册、preflight、run 生命周期、checkpoint 和归档入口
+
+## 统一实验入口
+
+```bash
+cp reference/io_specs/experiment.example.yaml experiment.yaml
+python scripts/xllm_flow.py preflight --spec experiment.yaml --output runs/example/env
+python scripts/xllm_flow.py run create --spec experiment.yaml
+python scripts/xllm_flow.py attempt add --run-root runs/example-campaign --spec experiment.yaml \
+  --attempt-id baseline-r0 --phase benchmark --status pass --hypothesis baseline \
+  --metrics-json runs/example-campaign/reports/metrics.json \
+  --artifact reports/metrics.json --repeat-index 0
+# 用 baseline/profile 填写 analysis/big-rock-gate.json 后再进入实现
+python scripts/xllm_flow.py gate check --run-root runs/example-campaign
+python scripts/xllm_flow.py checkpoint --run-root runs/example-campaign --phase implementation
+python scripts/xllm_flow.py attempt add --run-root runs/example-campaign --spec experiment.yaml \
+  --attempt-id candidate-r0 --parent-attempt baseline-r0 --phase benchmark --status pass \
+  --hypothesis "selected Big-Rock candidate" --changed-variable code.commit \
+  --metrics-json runs/example-campaign/reports/candidate-comparison.json \
+  --artifact reports/candidate-comparison.json --decision accept --repeat-index 0
+python scripts/xllm_flow.py run validate --run-root runs/example-campaign --status pass
+python scripts/xllm_flow.py export evidence --run-root runs/example-campaign
+python scripts/xllm_flow.py export fairness-candidate --run-root runs/example-campaign \
+  --name candidate
+python scripts/xllm_flow.py gate all --run-root runs/example-campaign \
+  --require build --require service --require evidence --formal
+python scripts/xllm_flow.py run finalize --run-root runs/example-campaign --status pass \
+  --reviewed-by "$USER" --retention-decision keep --kept-path reports/metrics.json
+```
+
+工作区任务注册表可从现有 worktree 幂等生成：
+
+```bash
+python scripts/xllm_flow.py --workspace-root /path/to/workspace registry sync
+python scripts/xllm_flow.py --workspace-root /path/to/workspace registry bind \
+  --task-id task-a --source-path /path/to/shared/checkout --run-root /path/to/run
+python scripts/xllm_flow.py --workspace-root /path/to/workspace workspace check --output /path/to/workspace
+```
+
+注册表同时报告缺失 source、单任务多 source，以及 task ID 与分支 TP 编号不一致。
+`registry bind` 用于明确复用共享 checkout 的任务身份，后续 `registry sync` 会保留绑定、
+alias、owner、priority、objective 和当前 phase。
+
+`run create` 只接受通过 preflight 的 spec；`attempt add` 拒绝重复完成的 fingerprint，
+并通过 hash chain 推进 checkpoint。`run finalize` 校验证据后生成 checksums、final-state
+以及 attempt、optimization、source idea 和 lineage ledgers。`run archive` 仅在结构化
+retention review 完成后允许退役任务。
+
+performance optimization 的 candidate comparison metrics 必须包含同键、非空的数值
+映射 `baseline`、`current` 和 `delta`，且逐项满足 `delta = current - baseline`；candidate
+还必须通过 `--parent-attempt` 关联已通过的 baseline。仅有 baseline 不能 finalize 为
+`pass`。
+
+统一入口负责身份、证据和生命周期；服务启动、EvalScope、profiling 和 compare
+继续调用本目录现有确定性脚本。
+
+`manifest.json` 是 run identity 的唯一来源。`export evidence` 和
+`export fairness-candidate` 从 manifest、attempt ledger 与生命周期 artifacts 投影派生文件；
+不要手工重复填写 framework、commit、设备顺序或 workload fingerprint。`gate all` 汇总
+build/service/evidence/fairness/Big-Rock 门禁，并在任何投影身份漂移时阻断。
 
 ## 原则
 
 - 本目录脚本为跨 skill 共用工具；skill 专属脚本保留在各 skill 的 `scripts/` 子目录
 - 所有脚本必须能在仓库根目录下直接运行
 - 参数变更写入本地 `config.json`，不在脚本中硬编码；共享默认值写入 `config.example.json`
+
+## Run Evidence Gate
+
+正式结论生成前运行：
+
+```bash
+python scripts/validate_run_evidence.py --run-root <run_root>
+```
+
+输入是 `$RUN_ROOT/run-evidence.json`，契约见
+[`../reference/io_specs/run-evidence-schema.md`](../reference/io_specs/run-evidence-schema.md)。
+脚本同时生成 `artifact-index.json` 和 `evidence-verdict.json`；只有 `PASS` 且
+`claim_scope=formal` 可以支撑 formal claim。再次校验时若声明过的 artifact 被覆盖，会保留原 index、写出
+`artifact-index.current.json` 并把结论降为 `INCONCLUSIVE`。
 
 ## 初始化 xLLM 代码仓和 Skills
 

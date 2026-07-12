@@ -194,6 +194,11 @@ npu-smi info -t memory
 
 症状：`python setup.py build --device npu` 明显比平时慢，或出现与改动无关的编译/链接错误。
 
+先读取 `xllm-npu-build-gate` 的 `verdict.json`、`environment.json`、
+`build-plan.json`、`source-fingerprint.json`、`binary-provenance.json` 和 `build.log`。
+本 skill 诊断 `FAILED` 的根因，不负责重新选择或执行 build plan；如果 verdict 是
+`BLOCKED`，应回到 build-gate 补齐输入，而不是在 triage 中猜测绕过。
+
 先判断是否为环境污染，不要直接归因到本次代码修改：
 - OPP 头文件与源码/库不匹配：常见表现是 `aclnnBeamSearchGroup` 签名不一致，或头文件里仍带旧的 `topK` 参数。
 - build cache 里的 libtorch 架构错误：常见表现是链接时报 `_deps/libtorch-src/lib/libtorch.so: file in wrong format`。
