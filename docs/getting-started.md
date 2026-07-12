@@ -1,52 +1,52 @@
-# Getting Started
+# 入门指南
 
-This guide installs the canonical skills and walks through a synthetic, non-NPU experiment lifecycle. It does not start a model service or claim hardware performance.
+本指南安装 canonical skills，并演示一个不使用 NPU 的合成实验 lifecycle。它不会启动模型服务，也不产生硬件性能结论。
 
-## 1. Choose the workspace mode
+## 1. 选择工作区模式
 
-From the workflow repository, initialize or reuse `code/xllm` and link project skills into `.agents/skills`:
+从 workflow 仓库初始化或复用 `code/xllm`，并把项目 skills 链接到 `.agents/skills`：
 
 ```bash
 python scripts/init_xllm_workspace.py
 ```
 
-To run the agent from an existing xLLM checkout, install the project skills into the selected agent directory:
+如果从已有 xLLM checkout 启动 agent，把项目 skills 安装到所选 agent 目录：
 
 ```bash
 python scripts/init_xllm_workspace.py --mode xllm --agent codex
 ```
 
-The installer discovers exactly the canonical directories declared in `skills/catalog.json`.
+安装器只发现 `skills/catalog.json` 声明的 canonical 目录。
 
-## 2. Start the agent
+## 2. 启动 Agent
 
-For repository-root mode:
+仓库根目录模式：
 
 ```bash
 codex
 ```
 
-For xLLM checkout mode:
+xLLM checkout 模式：
 
 ```bash
 cd code/xllm
 codex
 ```
 
-Start a new task after refresh so the agent receives current skill metadata.
+Refresh 后应启动新 task，让 agent 获取最新 skill metadata。
 
-## 3. Choose the primary workflow
+## 3. 选择主工作流
 
-- New or interrupted run state: `xllm-experiment-lifecycle`.
-- Open-ended xLLM optimization: `xllm-npu-sota-loop`, delegating run state to lifecycle.
-- One performance test against a ready service: `xllm-npu-perf-runner`.
-- Performance plus accuracy with complete artifacts: `xllm-npu-eval-runner`.
+- 新建或恢复 run 状态：`xllm-experiment-lifecycle`。
+- 开放式 xLLM 优化：`xllm-npu-sota-loop`，run 状态委托 lifecycle 管理。
+- 对 ready 服务执行一次性能测试：`xllm-npu-perf-runner`。
+- 性能与精度混合评测并收集完整 artifacts：`xllm-npu-eval-runner`。
 
-See the [capability index](../skills/README.md) for every route.
+全部入口见 [Skill 能力索引](../skills/README.md)。
 
-## 4. Create a synthetic lifecycle
+## 4. 创建合成 Lifecycle
 
-Copy [`experiment.example.yaml`](../reference/io_specs/experiment.example.yaml), set a local run root and a source checkout, and keep `environment.require_npu: false` for a synthetic check. Then follow the canonical commands in the [lifecycle skill](../skills/xllm-experiment-lifecycle/SKILL.md):
+复制 [`experiment.example.yaml`](../reference/io_specs/experiment.example.yaml)，设置本地 run root 与源码 checkout，并保持 `environment.require_npu: false`。然后遵循 [lifecycle skill](../skills/xllm-experiment-lifecycle/SKILL.md) 的 canonical 顺序：
 
 ```text
 preflight -> run create -> specialist artifacts -> attempt add
@@ -54,13 +54,13 @@ preflight -> run create -> specialist artifacts -> attempt add
           -> finalize -> retention review -> archive
 ```
 
-The repository test `tests/test_lifecycle_skill_cli.py` executes this lifecycle through real CLI subprocesses without starting a service or using an NPU.
+`tests/test_lifecycle_skill_cli.py` 会通过真实 CLI subprocess 执行这条 lifecycle，但不会启动服务或使用 NPU。
 
-## 5. Continue with real work
+## 5. 进入真实任务
 
-Before a real run, pin model, binary, checkout, hardware, workload, sampling, and evidence level. Use the [standard workflow](npu-ai-coding-standard-workflow.md) and preserve the support boundary: xLLM is complete; vLLM-Ascend and SGLang are limited to explicitly declared adapter or artifact scopes.
+真实 run 开始前必须固定 model、binary、checkout、hardware、workload、sampling 与 evidence level。遵循[标准工作流](npu-ai-coding-standard-workflow.md)，并保持支持边界：xLLM 是完整主路径；vLLM-Ascend 与 SGLang 仅限显式声明的 adapter 或 artifact scope。
 
-## Validate the repository
+## 验证仓库
 
 ```bash
 python scripts/validate_skill_catalog.py

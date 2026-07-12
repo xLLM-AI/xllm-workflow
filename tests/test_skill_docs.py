@@ -39,7 +39,7 @@ def test_check_detects_drift_without_rewriting(monkeypatch, tmp_path):
 
 def test_role_view_contains_each_canonical_skill_exactly_once():
     value = catalog()
-    role_section = MODULE.render_skills_readme(value).split("## By role", 1)[1].split("## By domain", 1)[0]
+    role_section = MODULE.render_skills_readme(value).split("## 按角色浏览", 1)[1].split("## 按领域浏览", 1)[0]
     for skill in value["skills"]:
         assert role_section.count(f"`{skill['id']}`") == 1
 
@@ -47,13 +47,13 @@ def test_role_view_contains_each_canonical_skill_exactly_once():
 def test_domain_view_contains_every_public_skill_and_separates_internal():
     value = catalog()
     text = MODULE.render_skills_readme(value)
-    domain_section = text.split("## By domain", 1)[1].split("## Public vs internal", 1)[0]
+    domain_section = text.split("## 按领域浏览", 1)[1].split("## 公开与内部能力", 1)[0]
     for skill in value["skills"]:
         count = domain_section.count(f"`{skill['id']}`")
         assert count == (1 if skill["visibility"] == "public" else 0)
     internal = next(skill for skill in value["skills"] if skill["visibility"] == "internal")
     assert internal["presentation"]["featured"] is False
-    assert "Internal / explicit-only" in text
+    assert "内部 / 仅显式调用" in text
 
 
 def test_generated_skill_links_resolve_and_match_catalog():
