@@ -67,7 +67,7 @@ model:
 service:
   tensor_parallel: 1
   devices: [0]
-  host: 127.0.0.1
+  host: localhost
   port: 18000
 workload:
   dataset: random

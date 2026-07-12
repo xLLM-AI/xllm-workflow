@@ -18,6 +18,7 @@ MODEL_FRAMEWORK = {
     "deepseek-v3": "xllm",
     "glm-5": "xllm",
     "qwen35-mtp": "xllm",
+    "qwen3-1p7b": "xllm",
 }
 
 

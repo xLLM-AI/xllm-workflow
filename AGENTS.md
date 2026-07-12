@@ -90,6 +90,7 @@ when their adapters and runbooks are added.
 
 | Task | Start With |
 |---|---|
+| Query model optimization history, prior risks, or PR lessons | `skills/model-pr-optimization-history/SKILL.md` |
 | Create, resume, validate, finalize, or archive an experiment run | `skills/xllm-experiment-lifecycle/SKILL.md` |
 | End-to-end optimization goal | `skills/xllm-npu-sota-loop/SKILL.md` |
 | Build, compile, build gate, NPU gate, or multi-candidate build reuse | `skills/xllm-npu-build-gate/SKILL.md` |
