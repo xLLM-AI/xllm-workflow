@@ -22,6 +22,20 @@ REQUIRED_ALIAS_FIELDS = {"id", "target", "description", "introduced_in", "remova
 SCALAR_FIELDS = {"id", "directory", "category", "visibility", "ownership"}
 ROUTING_PRIORITY_RANGE = range(1, 101)
 IGNORED_SKILL_PARTS = {".git", ".agents", ".pytest_cache", "__pycache__", "code", "runs"}
+REQUIRED_PRESENTATION_FIELDS = {
+    "display_name", "display_name_zh", "domain", "role_group", "exposure",
+    "summary", "summary_zh", "outputs", "featured",
+}
+DOMAINS = {
+    "lifecycle", "performance", "evaluation", "accuracy", "profiling",
+    "reliability", "build", "capacity", "knowledge", "development",
+    "reporting", "remote-execution",
+}
+ROLE_GROUPS = {
+    "orchestration", "execution", "analysis-and-diagnosis",
+    "planning-and-knowledge", "development-and-review", "gates-and-support",
+}
+EXPOSURES = {"public-primary", "public-delegated", "public-explicit-only", "internal-explicit-only"}
 
 
 def load_catalog(path: Path) -> dict[str, Any]:
@@ -86,6 +100,38 @@ def validate_catalog(catalog: dict[str, Any], root: Path) -> list[str]:
                 errors.append(f"{field} must be a non-empty list for {skill_id}")
             elif any(not isinstance(item, str) or not item.strip() for item in skill[field]):
                 errors.append(f"{field} entries must be non-empty strings for {skill_id}")
+        presentation = skill.get("presentation")
+        if not isinstance(presentation, dict):
+            errors.append(f"missing presentation metadata for {skill_id}")
+        else:
+            missing_presentation = REQUIRED_PRESENTATION_FIELDS - presentation.keys()
+            if missing_presentation:
+                errors.append(f"presentation for {skill_id} missing fields: {sorted(missing_presentation)}")
+            for field in ("display_name", "display_name_zh", "domain", "role_group", "exposure", "summary", "summary_zh"):
+                if field in presentation and (not isinstance(presentation[field], str) or not presentation[field].strip()):
+                    errors.append(f"presentation {field} must be a non-empty string for {skill_id}")
+            if presentation.get("domain") not in DOMAINS:
+                errors.append(f"invalid presentation domain for {skill_id}: {presentation.get('domain')}")
+            if presentation.get("role_group") not in ROLE_GROUPS:
+                errors.append(f"invalid presentation role_group for {skill_id}: {presentation.get('role_group')}")
+            if presentation.get("exposure") not in EXPOSURES:
+                errors.append(f"invalid presentation exposure for {skill_id}: {presentation.get('exposure')}")
+            outputs = presentation.get("outputs")
+            if not isinstance(outputs, list) or not outputs:
+                errors.append(f"presentation outputs must be a non-empty list for {skill_id}")
+            elif any(not isinstance(item, str) or not item.strip() for item in outputs):
+                errors.append(f"presentation outputs must contain non-empty strings for {skill_id}")
+            elif len(outputs) != len(set(outputs)):
+                errors.append(f"duplicate presentation output for {skill_id}")
+            if type(presentation.get("featured")) is not bool:
+                errors.append(f"presentation featured must be boolean for {skill_id}")
+            if skill["visibility"] == "internal":
+                if presentation.get("exposure") != "internal-explicit-only":
+                    errors.append(f"internal presentation exposure must be internal-explicit-only for {skill_id}")
+                if presentation.get("featured") is True:
+                    errors.append(f"internal skill cannot be featured: {skill_id}")
+            elif presentation.get("exposure") == "internal-explicit-only":
+                errors.append(f"public skill cannot use internal presentation exposure: {skill_id}")
         skill_file = root / "skills" / directory / "SKILL.md"
         if not skill_file.is_file():
             errors.append(f"missing skill directory or SKILL.md: {directory}")

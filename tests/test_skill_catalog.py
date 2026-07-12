@@ -136,3 +136,30 @@ def test_catalog_rejects_orphan_skill_file(tmp_path):
     orphan.write_text("---\nname: orphan\ndescription: orphan\n---\n", encoding="utf-8")
     found = MODULE.validate_catalog(value, tmp_path)
     assert any("orphan SKILL.md" in error for error in found)
+
+
+def test_every_skill_has_valid_presentation_metadata():
+    assert not errors(catalog())
+
+
+def test_catalog_rejects_missing_and_invalid_presentation_metadata():
+    value = catalog()
+    value["skills"][0].pop("presentation")
+    value["skills"][1]["presentation"]["domain"] = "unknown"
+    value["skills"][2]["presentation"]["featured"] = 0
+    value["skills"][3]["presentation"]["outputs"] = []
+    found = errors(value)
+    assert any("missing presentation metadata" in error for error in found)
+    assert any("invalid presentation domain" in error for error in found)
+    assert any("featured must be boolean" in error for error in found)
+    assert any("outputs must be a non-empty list" in error for error in found)
+
+
+def test_internal_presentation_is_explicit_only_and_not_featured():
+    value = catalog()
+    internal = next(skill for skill in value["skills"] if skill["visibility"] == "internal")
+    internal["presentation"]["exposure"] = "public-primary"
+    internal["presentation"]["featured"] = True
+    found = errors(value)
+    assert any("internal presentation exposure" in error for error in found)
+    assert any("internal skill cannot be featured" in error for error in found)
