@@ -481,7 +481,7 @@ docs: document workflow skill migration.
 - [x] Phase 1 routing baseline
 - [x] Phase 2 taxonomy/catalog
 - [x] Phase 3 public entry/runner refactor
-- [ ] Phase 4 compatibility aliases
+- [x] Phase 4 compatibility aliases
 - [ ] Phase 5 internalization
 - [ ] Phase 6 validation and PR
 
@@ -534,3 +534,11 @@ docs: document workflow skill migration.
 - Chosen option: add `xllm-experiment-lifecycle` as a thin public facade over `scripts/xllm_flow.py`, narrow the four broad orchestrator descriptions, and preserve existing runner names and direct intents.
 - Compatibility impact: additive public entry only. Existing skills remain at the same paths and retain their explicit routes. vLLM-Ascend/SGLang remain adapter- or artifact-level rather than full end-to-end claims.
 - Rollback method: revert the Phase 3 commit; the underlying `xllm-flow` CLI and all prior skill paths remain unchanged.
+
+### D-006: Preserve old names as canonical instead of inventing aliases
+
+- Evidence: Phase 3 added one entry but renamed, moved, and deleted none; all 19 baseline IDs still map to their original directories; the routing corpus provides no failing case that a second name would improve.
+- Alternatives considered: create aliases for unchanged names; rename runners for consistency; keep old names canonical and define a strict future alias contract.
+- Chosen option: keep `aliases` empty for PR12, test preservation of every baseline canonical ID, require compatibility metadata for any future alias, and reject alias chains as well as loops, missing targets, and multiple targets.
+- Compatibility impact: all existing invocations and links remain valid. There is no deprecation window because no old name is deprecated.
+- Rollback method: revert the Phase 4 policy/test commit; no runtime implementation or skill path changes are involved.

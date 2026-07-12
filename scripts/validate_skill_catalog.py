@@ -18,6 +18,7 @@ REQUIRED_SKILL_FIELDS = {
 }
 CATEGORIES = {"orchestrator", "planner", "runner", "analyzer", "gate", "support"}
 VISIBILITIES = {"public", "internal", "compatibility"}
+REQUIRED_ALIAS_FIELDS = {"id", "target", "description", "introduced_in", "removal_conditions"}
 
 
 def load_catalog(path: Path) -> dict[str, Any]:
@@ -89,10 +90,13 @@ def validate_catalog(catalog: dict[str, Any], root: Path) -> list[str]:
 
     alias_targets: dict[str, str] = {}
     for index, alias in enumerate(aliases):
-        if not isinstance(alias, dict) or not {"id", "target"} <= alias.keys():
-            errors.append(f"aliases[{index}] must contain id and target")
+        if not isinstance(alias, dict) or not REQUIRED_ALIAS_FIELDS <= alias.keys():
+            errors.append(f"aliases[{index}] missing required compatibility metadata")
             continue
         alias_id, target = alias["id"], alias["target"]
+        for field in ("description", "introduced_in", "removal_conditions"):
+            if not isinstance(alias[field], str) or not alias[field].strip():
+                errors.append(f"alias {alias_id} has empty {field}")
         if alias_id in ids:
             errors.append(f"alias collides with canonical id: {alias_id}")
         if alias_id in alias_targets and alias_targets[alias_id] != target:
@@ -105,6 +109,8 @@ def validate_catalog(catalog: dict[str, Any], root: Path) -> list[str]:
     for alias_id, target in alias_targets.items():
         if target not in resolvable:
             errors.append(f"missing alias target for {alias_id}: {target}")
+        if target in alias_targets:
+            errors.append(f"alias target must be canonical for {alias_id}: {target}")
         seen = {alias_id}
         current = target
         while current in alias_targets:
