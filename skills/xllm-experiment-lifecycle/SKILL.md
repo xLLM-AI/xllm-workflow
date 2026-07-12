@@ -28,19 +28,43 @@ description: xLLM 实验生命周期入口。用于创建或恢复 run root、�
 
 ## 标准流程
 
+先从 spec 固定工作区、registry、task 和 run identity。全局参数必须写在子命令之前：
+
 ```bash
+WORKSPACE_ROOT=/path/to/workspace
+REGISTRY="$WORKSPACE_ROOT/workspace-tasks.json"
+RUN_ROOT=/path/from/experiment.yaml
+TASK_ID=/task-id/from/experiment.yaml
+
 python scripts/xllm_flow.py preflight --spec experiment.yaml --output "$RUN_ROOT/env"
-python scripts/xllm_flow.py run create --spec experiment.yaml
+python scripts/xllm_flow.py --workspace-root "$WORKSPACE_ROOT" --registry "$REGISTRY" \
+  run create --spec experiment.yaml
 # 恢复时读取 "$RUN_ROOT/CHECKPOINT.md"，推进阶段时使用 checkpoint 子命令。
-# 专项 skill 执行 build -> service -> benchmark，并通过 attempt add 记录结果。
-python scripts/xllm_flow.py run validate --run-root "$RUN_ROOT"
-python scripts/xllm_flow.py run finalize --run-root "$RUN_ROOT" --status pass \
-  --retention-decision keep
-python scripts/xllm_flow.py run archive --task-id "$TASK_ID"
+# 专项 skill 执行 build -> service -> benchmark；每个结果通过 attempt add 记录。
+python scripts/xllm_flow.py attempt add --run-root "$RUN_ROOT" --spec experiment.yaml \
+  --attempt-id baseline-r0 --phase benchmark --status pass --hypothesis baseline \
+  --metrics-json "$RUN_ROOT/reports/metrics.json" \
+  --artifact reports/metrics.json --repeat-index 0
+
+python scripts/xllm_flow.py run validate --run-root "$RUN_ROOT" --status pass
+python scripts/xllm_flow.py export evidence --run-root "$RUN_ROOT"
+python scripts/xllm_flow.py gate all --run-root "$RUN_ROOT" \
+  --require build --require service --require evidence
+python scripts/xllm_flow.py --workspace-root "$WORKSPACE_ROOT" \
+  run finalize --run-root "$RUN_ROOT" --status pass \
+  --reviewed-by "$USER" --retention-decision keep \
+  --kept-path reports/metrics.json
+
+# 检查生成的 retention-review.md，再通过同一个 workspace registry 归档。
+python scripts/xllm_flow.py --workspace-root "$WORKSPACE_ROOT" --registry "$REGISTRY" \
+  run archive --task-id "$TASK_ID"
 ```
 
-实际参数以各子命令 `--help` 为准。不要绕过 `preflight`、`run validate` 或 evidence
-gate 手工修改最终状态。
+`--formal` 只用于 `full`、`formal-pr` 或 `sota-report` evidence level；smoke/quick
+不得伪装成 formal claim。公平对比还要向 `gate all` 增加 `--require fairness` 和
+`--fairness-root`，performance optimization 还必须通过 Big-Rock gate。实际参数以各
+子命令 `--help` 为准。不要绕过 `preflight`、`run validate`、evidence export 或
+`gate all` 手工修改最终状态。
 
 ## 恢复与委托
 
@@ -52,7 +76,8 @@ fingerprint，再从最后一个未完成 checkpoint 继续。不得重复执行
 
 ```text
 experiment -> preflight -> run create -> build -> service -> benchmark
-           -> evidence -> run validate -> finalize -> archive
+           -> attempts -> run validate -> export evidence -> gate all
+           -> finalize + retention review -> archive
 ```
 
 其中 build、service、benchmark 和专项分析由 catalog 中对应 skill 执行；本 skill
