@@ -470,8 +470,8 @@ docs: document workflow skill migration.
 - [x] vLLM-Ascend/SGLang 仍明确标为实验性 adapter，未过度宣称。
 - [x] 文档、catalog、SKILL descriptions 与安装链接一致。
 - [x] full tests、routing tests、refresh、smoke、diff check 全部通过。
-- [ ] 创建 Draft PR，标题符合规范并以句点结尾。
-- [ ] Draft PR 正文包含 before/after routing matrix、兼容说明、测试结果和剩余限制。
+- [x] 创建 Draft PR，标题符合规范并以句点结尾。
+- [x] Draft PR 正文包含 before/after routing matrix、兼容说明、测试结果和剩余限制。
 
 ---
 
@@ -483,7 +483,7 @@ docs: document workflow skill migration.
 - [x] Phase 3 public entry/runner refactor
 - [x] Phase 4 compatibility aliases
 - [x] Phase 5 internalization
-- [ ] Phase 6 validation and PR (validation complete; Draft PR pending)
+- [x] Phase 6 validation and PR ([Draft PR #13](https://github.com/xLLM-AI/xllm-workflow/pull/13))
 
 ## Decision Log
 
