@@ -9,6 +9,7 @@
 - host platform、architecture、CPU 数。
 - Python、torch/torch_npu、headers、ATB 检查结果。
 - 可选 NPU gate 的 `npu-smi`、设备节点和相关进程快照。
+- OPP lock 路径、对应 marker parent 和等待时长。
 - 选定的非敏感构建环境和并发变量。
 - `CTEST_PARALLEL_LEVEL` 只作为 ignored provenance，不传给构建命令。
 
@@ -27,13 +28,15 @@
 - configure 输入文件 SHA256。
 - recursive submodule commits。
 - `git submodule status` 中的 uninitialized、commit mismatch 或 conflict 都是 blocker。
-- xllm_ops source/marker identity。
+- xllm_ops 构建前 source/marker identity。
 - required patch path、SHA256、applied 状态。
 
 ## `binary-provenance.json`
 
 - source fingerprint 的 branch、commit、dirty diff SHA。
-- CMake、submodule、xllm_ops 和 required patch identity。
+- CMake、submodule、required patch identity。
+- xllm_ops 构建后重新采集的 source/marker identity，以及 CPack staging 和安装 OPP 的
+  payload 文件数、整体 digest、缺失/多余/哈希不一致文件。
 - 实际策略、构建命令和每条命令退出码。
 - 每条命令是否因无输出超时，以及超时前最后一行 family/variant 进度。
 - binary path、SHA256、size、ELF `file` 输出和 `ldd -r` 输出。
@@ -50,6 +53,7 @@
 }
 ```
 
-- `PASS`：构建命令成功且 binary validation 完整通过。
+- `PASS`：构建命令成功，binary validation 完整通过，且适用时 xllm_ops marker 与
+  OPP payload 完整一致。
 - `BLOCKED`：输入或环境不足，构建未安全执行。
 - `FAILED`：构建或 binary validation 已执行但失败。

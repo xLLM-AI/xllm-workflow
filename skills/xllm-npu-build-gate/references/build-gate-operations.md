@@ -21,6 +21,22 @@ baseline、current 和多个候选应使用固定 eval lane，并对每个候选
 目标设备是否存在业务占用仍需结合 server/batch runner 的显式设备列表进行确认；仅看到
 AICore 空闲不能证明 HBM/context 已清理。
 
+## xllm_ops global OPP gate
+
+`custom_xllm_math` 是多个 checkout/worktree 共享的主机级安装目录。build-gate 会从读取
+marker 开始持有 OPP 文件锁，直到 xllm_ops、主构建和构建后验证全部完成。所有通过本
+skill 发起的构建因此不能交叉覆盖 vendor；绕过 skill 的手工安装不受该锁保护。
+
+构建后必须重新比较 source HEAD 与 marker，并把 CPack staging 的 `op_impl`、`op_proto`、
+`op_api` 与实际安装目录逐文件计算 SHA256。自定义 build dir 位于仓库外时使用：
+
+```bash
+--opp-package-root <cpack_staging>/packages/vendors/custom_xllm_math
+```
+
+无法找到 staging、marker 未刷新，或 payload 存在缺失、多余、哈希不一致时返回
+`FAILED`。不得仅凭 marker 相等或 `ldd -r` 成功进入 benchmark。
+
 ## Official performance versus profiling
 
 正式性能 run 与 profiling run 必须分开。build verdict 只证明 binary 来源和依赖闭合，

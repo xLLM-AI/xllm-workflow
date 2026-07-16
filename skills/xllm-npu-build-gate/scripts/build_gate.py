@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import fcntl
 import hashlib
 import json
 import os
@@ -330,8 +331,119 @@ def find_opp_marker(repo: Path, requested: Path | None) -> Path | None:
     for root in os.environ.get("ASCEND_CUSTOM_OPP_PATH", "").split(":"):
         if root:
             candidates.append(Path(root) / ".xllm_ops_git_head")
+    ascend_opp = os.environ.get("ASCEND_OPP_PATH")
+    if ascend_opp:
+        candidates.append(
+            Path(ascend_opp) / "vendors/custom_xllm_math/.xllm_ops_git_head"
+        )
     candidates.append(repo / "third_party/xllm_ops/.xllm_ops_git_head")
     return next((path.resolve() for path in candidates if path.is_file()), None)
+
+
+def opp_marker_candidate(repo: Path, requested: Path | None) -> Path:
+    if requested:
+        return requested.resolve()
+    env_marker = os.environ.get("XLLM_OPP_MARKER")
+    if env_marker:
+        return Path(env_marker).resolve()
+    for root in os.environ.get("ASCEND_CUSTOM_OPP_PATH", "").split(":"):
+        if root:
+            return (Path(root) / ".xllm_ops_git_head").resolve()
+    ascend_opp = os.environ.get("ASCEND_OPP_PATH")
+    if ascend_opp:
+        return (
+            Path(ascend_opp) / "vendors/custom_xllm_math/.xllm_ops_git_head"
+        ).resolve()
+    return (repo / "third_party/xllm_ops/.xllm_ops_git_head").resolve()
+
+
+def acquire_opp_lock(marker: Path, requested: Path | None, timeout: int) -> tuple[Any, dict[str, Any]]:
+    identity = hashlib.sha256(str(marker.parent).encode()).hexdigest()[:16]
+    lock_path = (requested or Path(f"/tmp/xllm-build-gate-opp-{identity}.lock")).resolve()
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    handle = lock_path.open("a+", encoding="utf-8")
+    started = time.monotonic()
+    while True:
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            break
+        except BlockingIOError:
+            if time.monotonic() - started >= timeout:
+                handle.close()
+                raise GateError(f"opp_lock_timeout:{lock_path}")
+            time.sleep(0.2)
+    return handle, {
+        "path": str(lock_path),
+        "marker_parent": str(marker.parent),
+        "wait_seconds": round(time.monotonic() - started, 3),
+        "acquired": True,
+    }
+
+
+def opp_payload_snapshot(vendor_root: Path) -> dict[str, str]:
+    files: dict[str, str] = {}
+    for directory in ("op_impl", "op_proto", "op_api"):
+        root = vendor_root / directory
+        if not root.is_dir():
+            continue
+        for path in sorted(root.rglob("*")):
+            if path.is_file() and "__pycache__" not in path.parts:
+                files[str(path.relative_to(vendor_root))] = sha256_file(path)
+    return files
+
+
+def find_opp_package_vendor(
+    repo: Path, marker: Path, requested: Path | None
+) -> Path | None:
+    vendor_name = marker.parent.name
+    candidates: list[Path] = []
+    if requested:
+        root = requested.resolve()
+        candidates.extend((root, root / "vendors" / vendor_name))
+    ops_root = repo / "third_party/xllm_ops"
+    if ops_root.is_dir():
+        candidates.extend(
+            ops_root.glob(
+                f"**/_CPack_Packages/*/External/*/packages/vendors/{vendor_name}"
+            )
+        )
+    valid = [path for path in candidates if (path / "op_impl").is_dir()]
+    return max(valid, key=lambda path: path.stat().st_mtime_ns) if valid else None
+
+
+def validate_opp_payload(
+    repo: Path, marker: Path, requested_package_root: Path | None
+) -> tuple[dict[str, Any], list[str]]:
+    installed_root = marker.parent
+    package_root = find_opp_package_vendor(repo, marker, requested_package_root)
+    installed = opp_payload_snapshot(installed_root)
+    expected = opp_payload_snapshot(package_root) if package_root else {}
+    missing = sorted(set(expected) - set(installed))
+    unexpected = sorted(set(installed) - set(expected))
+    mismatched = sorted(
+        path for path in set(expected) & set(installed) if expected[path] != installed[path]
+    )
+    failures: list[str] = []
+    if package_root is None:
+        failures.append("xllm_ops_payload_reference_missing")
+    elif not expected:
+        failures.append("xllm_ops_payload_reference_empty")
+    if not installed:
+        failures.append("xllm_ops_payload_installation_empty")
+    if missing or unexpected or mismatched:
+        failures.append("xllm_ops_payload_mismatch")
+    return {
+        "installed_root": str(installed_root),
+        "package_root": str(package_root) if package_root else None,
+        "installed_file_count": len(installed),
+        "expected_file_count": len(expected),
+        "installed_digest": sha256_bytes(json.dumps(installed, sort_keys=True).encode()),
+        "expected_digest": sha256_bytes(json.dumps(expected, sort_keys=True).encode()),
+        "missing": missing,
+        "unexpected": unexpected,
+        "mismatched": mismatched,
+        "matches": bool(expected and installed and not missing and not unexpected and not mismatched),
+    }, failures
 
 
 def xllm_ops_identity(repo: Path, marker_path: Path | None) -> dict[str, Any]:
@@ -654,6 +766,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--base-ref")
     parser.add_argument("--required-patch", action="append", type=Path, default=[])
     parser.add_argument("--opp-marker", type=Path)
+    parser.add_argument("--opp-package-root", type=Path)
+    parser.add_argument("--opp-lock-path", type=Path)
+    parser.add_argument("--opp-lock-timeout", type=int, default=1800)
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--configure-command")
     parser.add_argument("--incremental-command")
@@ -683,9 +798,18 @@ def main(argv: list[str] | None = None) -> int:
     phase = "preflight"
     blockers: list[str] = []
     failures: list[str] = []
+    opp_lock_handle = None
+    opp_lock: dict[str, Any] = {"acquired": False}
     try:
         adapter = FRAMEWORK_ADAPTERS[args.framework]
         repo, repo_identity = resolve_repo(args.repo)
+        if adapter["special_dependency"] == "xllm_ops":
+            if args.opp_lock_timeout < 1:
+                raise GateError("--opp-lock-timeout must be a positive integer")
+            marker_candidate = opp_marker_candidate(repo, args.opp_marker)
+            opp_lock_handle, opp_lock = acquire_opp_lock(
+                marker_candidate, args.opp_lock_path, args.opp_lock_timeout
+            )
         base_ref = choose_base_ref(repo, args.base_ref)
         changed_paths = collect_changed_paths(repo, base_ref)
         submodules, submodule_blockers = collect_submodules(
@@ -796,6 +920,7 @@ def main(argv: list[str] | None = None) -> int:
                 "BUILD_GATE_TILELANG_WORKERS": build_env["BUILD_GATE_TILELANG_WORKERS"],
             },
             "requested_build_environment": requested_build_env,
+            "opp_lock": opp_lock,
         }
         plan = {
             "schema_version": SCHEMA_VERSION,
@@ -851,6 +976,20 @@ def main(argv: list[str] | None = None) -> int:
 
         binary, binary_failures = binary_provenance(args.binary)
         if args.execute and build_returncode == 0:
+            if adapter["special_dependency"] == "xllm_ops" and ops.get("source_head"):
+                post_ops = xllm_ops_identity(repo, args.opp_marker)
+                post_ops["applicable"] = True
+                marker_path = post_ops.get("marker_path")
+                if not post_ops["matches"]:
+                    binary_failures.append("xllm_ops_post_build_marker_mismatch")
+                    post_ops["payload"] = {"matches": False, "reason": "marker_mismatch"}
+                elif marker_path:
+                    payload, payload_failures = validate_opp_payload(
+                        repo, Path(marker_path), args.opp_package_root
+                    )
+                    post_ops["payload"] = payload
+                    binary_failures.extend(payload_failures)
+                ops = post_ops
             failures.extend(binary_failures)
             status = "PASS" if not binary_failures else "FAILED"
         elif not args.execute and not blockers and not binary_failures:
@@ -920,6 +1059,9 @@ def main(argv: list[str] | None = None) -> int:
         },
     }
     write_json(artifact_dir / "verdict.json", verdict)
+    if opp_lock_handle is not None:
+        fcntl.flock(opp_lock_handle.fileno(), fcntl.LOCK_UN)
+        opp_lock_handle.close()
     print(json.dumps(verdict, ensure_ascii=False))
     return {"PASS": 0, "FAILED": 1, "BLOCKED": 2}[status]
 
