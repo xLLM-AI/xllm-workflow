@@ -85,6 +85,12 @@ wrapper 需要：
 5. e2e accuracy：风险高时跑目标数据集 subset；
 6. performance：带 warmup 的 before/after，不能用 profiling run 代替正式性能数据。
 
+合入前先将最新 xllm-ops upstream 同步到 xLLM 主仓，提交更新后的
+`third_party/xllm_ops` 指针，再从该 xLLM revision 重新构建算子包、xLLM 和运行验证；
+不能只复用旧指针或历史构建产物。构建与运行使用同一 CANN 环境，记录 xLLM、xllm_ops
+SHA 及实际加载的 custom-op 库路径。任一来源不一致或最新源码仍编译失败时保持 Draft，
+修复后从更新后的指针重新验证。
+
 输出报告必须包含：
 
 ```markdown
