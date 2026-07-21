@@ -28,6 +28,8 @@ python <skill_dir>/scripts/build_gate.py \
   --build-dir <cmake_build_dir> \
   --binary <xllm_binary> \
   --base-ref origin/main \
+  --opp-marker <installed_vendor>/.xllm_ops_git_head \
+  --opp-package-root <cpack_staging>/packages/vendors/custom_xllm_math \
   --execute \
   --configure-command '<full configure/build command>' \
   --incremental-command '<incremental xllm target command>' \
@@ -49,7 +51,7 @@ cache，也不执行 `xllm_ops` 检查。xLLM 保留原有 CMake、TileLang 和 
 
 | 退出码 | verdict | 含义 |
 |---|---|---|
-| `0` | `PASS` | 构建成功，binary 通过 SHA256、ELF、`file`、`ldd -r` 验证 |
+| `0` | `PASS` | 构建成功，binary 和 xllm_ops OPP payload 均通过一致性验证 |
 | `1` | `FAILED` | 构建命令失败或 binary 验证失败 |
 | `2` | `BLOCKED` | 环境/patch/submodule/命令不完整，不能安全构建 |
 
@@ -66,7 +68,13 @@ cache，也不执行 `xllm_ops` 检查。xLLM 保留原有 CMake、TileLang 和 
 - 当前 Python headers、`torch`/`torch_npu`、libtorch ABI 和 ATB header。
 - 正式 eval 前加 `--require-npu`，检查 `npu-smi` 和 `/dev/davinci*` 等设备节点；
   相关进程快照写入 `environment.json`。
-- `third_party/xllm_ops` HEAD 与 `.xllm_ops_git_head` OPP marker。
+- `third_party/xllm_ops` HEAD 与 `.xllm_ops_git_head` OPP marker；构建后必须重新读取，
+  不得复用 preflight 快照。
+- CPack staging 与实际安装 OPP 中 `op_impl`、`op_proto`、`op_api` 的文件集合及 SHA256；
+  缺文件、多文件或内容不同均返回 `FAILED`。
+- 对每个 AscendC 动态算子校验单算子 config、`binary_info_config.json`、kernel JSON 和
+  `.o` 的闭包关系；算子未进入聚合索引、索引路径不一致或产物缺失均返回 `FAILED`。
+- xllm_ops 构建和主构建共享同一把主机级 OPP 文件锁，防止不同 worktree 并发覆盖全局 vendor。
 - 每个 `--required-patch` 的 SHA256，以及是否已应用到候选源码。
 - 最终 binary 的路径、SHA256、大小、`file` 和 `ldd -r`。
 
@@ -82,6 +90,8 @@ cache，也不执行 `xllm_ops` 检查。xLLM 保留原有 CMake、TileLang 和 
 | TileLang kernel/wrapper 变化且 configure identity 一致 | `tilelang-targeted` |
 | vLLM-Ascend/SGLang kernel 或 extension 变化 | `framework-targeted` |
 | `xllm_ops` HEAD 与 OPP marker 不一致 | 在主构建前追加 `rebuild_and_install_xllm_ops` |
+| 构建后 marker 未刷新或 OPP payload 与 CPack staging 不一致 | `FAILED`，禁止消费 binary |
+| 动态 kernel 已编译但 config 未在最后重新生成，或聚合索引缺失该算子 | `FAILED`，禁止启动服务 |
 | submodule 未初始化/冲突、必需 patch 缺失、工具链不可证明 | `BLOCKED` |
 
 ### Fresh worktree / rebase
@@ -138,6 +148,7 @@ verdict.json
 
 1. 从用户配置、xLLM 仓库构建文档或已验证脚本取得三类 build command；不自行猜测。
 2. 把本机必需 patch、OPP marker、build dir 和 binary 路径显式传给脚本。
+   若 CPack staging 不在 `third_party/xllm_ops` 下，必须通过 `--opp-package-root` 显式传入。
 3. 执行 gate，读取 `verdict.json`，不要只看命令退出文本。
 4. `PASS`：把 `binary-provenance.json` 和 binary 路径交给 eval-runner。
 5. `BLOCKED`：补齐环境或命令后重跑，禁止 benchmark。

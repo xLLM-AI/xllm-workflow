@@ -81,6 +81,63 @@ def read_artifact(run_root, name):
     return json.loads((run_root / "build" / name).read_text())
 
 
+def init_xllm_ops(repo):
+    ops = repo / "third_party/xllm_ops"
+    ops.mkdir(parents=True)
+    command("git", "init", "-b", "main", cwd=ops)
+    command("git", "config", "user.name", "Test User", cwd=ops)
+    command("git", "config", "user.email", "test@example.com", cwd=ops)
+    (ops / "op.cc").write_text("// op\n")
+    command("git", "add", ".", cwd=ops)
+    command("git", "commit", "-m", "ops", cwd=ops)
+    return ops, command("git", "rev-parse", "HEAD", cwd=ops).stdout.strip()
+
+
+def make_opp_payload(root, content="fresh kernel\n"):
+    kernel = root / "op_impl/ai_core/tbe/kernel/op.o"
+    kernel.parent.mkdir(parents=True)
+    kernel.write_text(content)
+    return root
+
+
+def add_dynamic_kernel_config(root, *, index_op=True, include_binary=True):
+    kernel_root = root / "op_impl/ai_core/tbe/kernel"
+    arch = "ascend910_93"
+    json_path = f"{arch}/mega_chunk_gdn/MegaChunkGdn_deadbeef.json"
+    kernel_json = kernel_root / json_path
+    kernel_json.parent.mkdir(parents=True, exist_ok=True)
+    kernel_json.write_text("{}\n")
+    if include_binary:
+        kernel_json.with_suffix(".o").write_text("kernel\n")
+
+    config_root = kernel_root / "config" / arch
+    config_root.mkdir(parents=True, exist_ok=True)
+    (config_root / "mega_chunk_gdn.json").write_text(
+        json.dumps(
+            {
+                "binList": [
+                    {
+                        "simplifiedKey": ["MegaChunkGdn/d=0,p=1/1,2"],
+                        "binInfo": {"jsonFilePath": json_path},
+                    }
+                ]
+            }
+        )
+    )
+    binary_info = {}
+    if index_op:
+        binary_info["MegaChunkGdn"] = {
+            "binaryList": [
+                {
+                    "jsonPath": json_path,
+                    "binPath": json_path.removesuffix(".json") + ".o",
+                }
+            ]
+        }
+    (config_root / "binary_info_config.json").write_text(json.dumps(binary_info))
+    return root
+
+
 def test_selects_incremental_build_and_writes_provenance(tmp_path):
     repo = init_repo(tmp_path)
     make_cache(repo)
@@ -262,17 +319,10 @@ def test_bare_repository_is_failed_with_verdict_artifact(tmp_path):
         assert (run_root / "build" / name).is_file()
 
 
-def test_xllm_ops_marker_mismatch_requires_reinstall_before_build(tmp_path):
+def test_xllm_ops_marker_mismatch_fails_when_reinstall_does_not_refresh_marker(tmp_path):
     repo = init_repo(tmp_path)
     make_cache(repo)
-    ops = repo / "third_party/xllm_ops"
-    ops.mkdir(parents=True)
-    command("git", "init", "-b", "main", cwd=ops)
-    command("git", "config", "user.name", "Test User", cwd=ops)
-    command("git", "config", "user.email", "test@example.com", cwd=ops)
-    (ops / "op.cc").write_text("// op\n")
-    command("git", "add", ".", cwd=ops)
-    command("git", "commit", "-m", "ops", cwd=ops)
+    init_xllm_ops(repo)
     marker = tmp_path / ".xllm_ops_git_head"
     marker.write_text("0" * 40 + "\n")
     run_root = tmp_path / "run"
@@ -291,12 +341,152 @@ def test_xllm_ops_marker_mismatch_requires_reinstall_before_build(tmp_path):
         "/bin/true",
     )
 
-    assert result.returncode == 0, result.stderr
+    assert result.returncode == 1
     plan = read_artifact(run_root, "build-plan.json")
     provenance = read_artifact(run_root, "binary-provenance.json")
     assert plan["actions"][0] == "rebuild_and_install_xllm_ops"
     assert plan["commands"] == ["echo rebuild-opp", "echo build-xllm"]
     assert provenance["xllm_ops"]["matches"] is False
+    assert "xllm_ops_post_build_marker_mismatch" in read_artifact(
+        run_root, "verdict.json"
+    )["failures"]
+
+
+def test_xllm_ops_post_build_payload_mismatch_fails(tmp_path):
+    repo = init_repo(tmp_path)
+    make_cache(repo)
+    _, ops_head = init_xllm_ops(repo)
+    installed = make_opp_payload(tmp_path / "opp/vendors/custom_xllm_math", "stale\n")
+    package = make_opp_payload(tmp_path / "package/vendors/custom_xllm_math", "fresh\n")
+    marker = installed / ".xllm_ops_git_head"
+    marker.write_text(ops_head + "\n")
+    run_root = tmp_path / "run"
+
+    result = invoke(
+        repo,
+        run_root,
+        "--execute",
+        "--opp-marker",
+        marker,
+        "--opp-package-root",
+        package,
+        "--configure-command",
+        "true",
+        "--binary",
+        "/bin/true",
+    )
+
+    assert result.returncode == 1
+    provenance = read_artifact(run_root, "binary-provenance.json")
+    assert provenance["xllm_ops"]["payload"]["matches"] is False
+    assert provenance["xllm_ops"]["payload"]["mismatched"] == [
+        "op_impl/ai_core/tbe/kernel/op.o"
+    ]
+    assert "xllm_ops_payload_mismatch" in read_artifact(run_root, "verdict.json")[
+        "failures"
+    ]
+
+
+def test_xllm_ops_matching_marker_and_payload_pass(tmp_path):
+    repo = init_repo(tmp_path)
+    make_cache(repo)
+    _, ops_head = init_xllm_ops(repo)
+    installed = make_opp_payload(tmp_path / "opp/vendors/custom_xllm_math")
+    package = make_opp_payload(tmp_path / "package/vendors/custom_xllm_math")
+    marker = installed / ".xllm_ops_git_head"
+    marker.write_text(ops_head + "\n")
+    run_root = tmp_path / "run"
+
+    result = invoke(
+        repo,
+        run_root,
+        "--execute",
+        "--opp-marker",
+        marker,
+        "--opp-package-root",
+        package,
+        "--configure-command",
+        "true",
+        "--binary",
+        "/bin/true",
+    )
+
+    assert result.returncode == 0, result.stderr
+    provenance = read_artifact(run_root, "binary-provenance.json")
+    assert provenance["xllm_ops"]["matches"] is True
+    assert provenance["xllm_ops"]["payload"]["matches"] is True
+    assert read_artifact(run_root, "environment.json")["opp_lock"]["acquired"] is True
+
+
+def test_xllm_ops_unindexed_dynamic_kernel_config_fails(tmp_path):
+    repo = init_repo(tmp_path)
+    make_cache(repo)
+    _, ops_head = init_xllm_ops(repo)
+    installed = add_dynamic_kernel_config(
+        make_opp_payload(tmp_path / "opp/vendors/custom_xllm_math"), index_op=False
+    )
+    package = add_dynamic_kernel_config(
+        make_opp_payload(tmp_path / "package/vendors/custom_xllm_math"), index_op=False
+    )
+    marker = installed / ".xllm_ops_git_head"
+    marker.write_text(ops_head + "\n")
+    run_root = tmp_path / "run"
+
+    result = invoke(
+        repo,
+        run_root,
+        "--execute",
+        "--opp-marker",
+        marker,
+        "--opp-package-root",
+        package,
+        "--configure-command",
+        "true",
+        "--binary",
+        "/bin/true",
+    )
+
+    assert result.returncode == 1
+    provenance = read_artifact(run_root, "binary-provenance.json")
+    config = provenance["xllm_ops"]["payload"]["dynamic_kernel_config"]
+    assert config["matches"] is False
+    assert config["unindexed_ops"] == ["MegaChunkGdn"]
+    assert "xllm_ops_dynamic_kernel_config_mismatch" in read_artifact(
+        run_root, "verdict.json"
+    )["failures"]
+
+
+def test_xllm_ops_matching_dynamic_kernel_config_passes(tmp_path):
+    repo = init_repo(tmp_path)
+    make_cache(repo)
+    _, ops_head = init_xllm_ops(repo)
+    installed = add_dynamic_kernel_config(
+        make_opp_payload(tmp_path / "opp/vendors/custom_xllm_math")
+    )
+    package = add_dynamic_kernel_config(
+        make_opp_payload(tmp_path / "package/vendors/custom_xllm_math")
+    )
+    marker = installed / ".xllm_ops_git_head"
+    marker.write_text(ops_head + "\n")
+    run_root = tmp_path / "run"
+
+    result = invoke(
+        repo,
+        run_root,
+        "--execute",
+        "--opp-marker",
+        marker,
+        "--opp-package-root",
+        package,
+        "--configure-command",
+        "true",
+        "--binary",
+        "/bin/true",
+    )
+
+    assert result.returncode == 0, result.stderr
+    provenance = read_artifact(run_root, "binary-provenance.json")
+    assert provenance["xllm_ops"]["payload"]["dynamic_kernel_config"]["matches"] is True
 
 
 def test_vllm_ascend_adapter_does_not_require_cmake_or_xllm_ops(tmp_path):
