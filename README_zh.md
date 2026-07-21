@@ -2,137 +2,80 @@
 
 语言：[English](README.md) | [简体中文](README_zh.md)
 
-面向昇腾 NPU 大模型推理优化的 agent-ready 工作流、Prompt、证据规范和参考知识库。
-首个落地目标：[xLLM](https://github.com/jd-opensource/xllm)；公平基线：
-[vLLM-Ascend](https://github.com/vllm-project/vllm-ascend) 和 SGLang NPU。
+面向昇腾 NPU 大模型 serving 的证据驱动工作流、skills、脚本与参考知识库。**xLLM 是完整主路径。** vLLM-Ascend 与 SGLang 仅支持 [skill map](docs/architecture/skill-map.md) 中明确声明的 experimental adapter 或 artifact-analysis 范围。
 
-**本仓库可以处理的任务：**
+## 选择任务入口
 
-1. **特性设计与开发** — 设计新的 NPU serving 特性，编写代码，通过 review-gated 证据闭环验证。
-2. **问题定位与修复** — 定位精度回归、crash、OOM、图模式失败或 HCCL 问题，产出可复现证据和验证过的 patch。
-3. **性能优化** — 建立公平基线，采集 profiling 证据，识别瓶颈，迭代逼近 TPOT/TTFT/TPS 目标并量化收益。
+| 目标 | 首选入口 |
+|---|---|
+| 创建、恢复、finalize 或 archive 实验 | `xllm-experiment-lifecycle` |
+| 多轮迭代优化 xLLM 性能 | `xllm-npu-sota-loop` |
+| 执行性能与精度混合套件 | `xllm-npu-eval-runner` |
+| 执行一次性能或精度 workload | `xllm-npu-perf-runner` 或 `xllm-npu-accuracy-runner` |
+| 启动、验证、smoke 并清理服务 | `xllm-npu-server-manager` |
+| 审查公平性或可发布性能结论 | `xllm-npu-benchmark` |
+| 采集或分析 profiling 证据 | `xllm-npu-profiler` 或 `xllm-npu-pipeline-analysis` |
+| 诊断错误输出或 runtime/build 事故 | `xllm-npu-accuracy-debug` 或 `xllm-npu-incident-triage` |
+| 查询模型与 PR 历史经验 | `model-pr-optimization-history` |
 
-## 1 快速开始
+在性能优化 campaign 中，`xllm-npu-sota-loop` 负责优化决策，`xllm-experiment-lifecycle` 负责可恢复 run 与 evidence 状态。
 
-### A. 初始化 xLLM 代码和 Skills
+## 五分钟开始
 
-方式 1：在本项目根目录启动 code agent。脚本会克隆或复用 `code/xllm`，把本项目
-`skills/*` 软链接到 `.agents/skills`，并把 xLLM 仓内 skills 也链接到同一个生成目录。
+初始化或复用 xLLM checkout，并安装 canonical skills：
 
 ```bash
 python scripts/init_xllm_workspace.py
 ```
 
-方式 2：在 `code/xllm` 下启动 code agent。同一个脚本会把本项目 `skills/*`
-安装到所选 agent 的 skills 目录，xLLM 则继续使用它仓库内自己的 skills。
-
-```bash
-python scripts/init_xllm_workspace.py --mode xllm --agent codex
-```
-
-初始化脚本会在需要时从 `config.example.json` 生成本地 `config.json`，再读取 xLLM
-仓库配置；如果配置缺失，会询问 Git URL 和分支或 commit，并写回本地
-`config.json`。当 `code/xllm` 不存在或为空时，脚本会拉取代码；如果目录已存在，
-则复用现有代码。
-
-### B. 启动 Code Agent
-
-方式 1：在当前仓库根目录启动 code agent，这样它可以加载工作区 `AGENTS.md`
-和生成的 `.agents/skills`。
+在当前仓库启动 Codex：
 
 ```bash
 codex
 ```
 
-方式 2：进入 xLLM 仓库目录启动 code agent。
+然后选择[可复制 prompt](prompts/)，或从 [`experiment.example.yaml`](reference/io_specs/experiment.example.yaml) 创建实验。合成 lifecycle 演练见[入门指南](docs/getting-started.md)。
 
-```bash
-cd code/xllm
-codex
+## 各部分如何协作
+
+```mermaid
+flowchart LR
+  U["用户意图"] --> S["Skills：决策与委托"]
+  S --> D["Scripts：确定性执行"]
+  D --> E["Run evidence 与 ledgers"]
+  R["Reference 与 IO 合约"] --> S
+  R --> D
+  E --> H["沉淀后的持久经验"]
 ```
 
-### C. 选择 Prompt
+Lifecycle 是控制面。编排器把有边界的工作委托给执行器、分析器、规划器和门禁；确定性脚本产出可审计 artifacts。
 
-从 [`prompts/`](prompts/) 复制模板，填入模型、硬件、框架、workload 和目标指标。
+## 浏览能力
 
-| Prompt | 场景 |
-|---|---|
-| [`sota-loop`](prompts/xllm-npu-sota-loop-prompts.md) | 端到端优化、TPOT/decode gap、MTP 验证 |
-| [`eval-profiler`](prompts/xllm-npu-eval-profiler-prompts.md) | 编译门禁、服务启动、evalscope、profiling、容量/OOM |
-| [`pr-fix`](prompts/xllm-npu-pr-fix-prompts.md) | PR 回归、review 回复、rebase、编译门禁 |
-| [`operator-work`](prompts/xllm-npu-operator-work-prompts.md) | 算子工作、Triton-Ascend AOT 迁移、xllm_ops runtime 接入 |
+- [Skill 能力索引](skills/README.md) — 按角色和领域分组。
+- [详细 skill 架构](docs/architecture/skill-map.md) — 依赖、scope、intent 与 outputs。
+- [Agent 路由合约](AGENTS.md) — 精确 task-to-skill 与仓库约束。
 
-### D. 执行工作流
+## 文档
 
-正式工作遵循 `target → baseline → profiling → patch → accuracy → performance → record`。
-Skill 路由见 [AGENTS.md](AGENTS.md)，Phase 详情见 [docs/npu-ai-coding-standard-workflow.md](docs/npu-ai-coding-standard-workflow.md)。
+从[文档中心](docs/README.md)查找当前用户、架构、工作流和维护者指南。[标准 NPU AI coding workflow](docs/npu-ai-coding-standard-workflow.md)解释证据驱动的各阶段。历史 PR 设计记录会继续保留，但不是日常操作入口。
 
-实验控制面统一从 `xllm-experiment-lifecycle` 进入；开放式性能优化使用
-`xllm-npu-sota-loop`，单次评测、benchmark 结论和 profiling 分析继续使用各自专项 skill。
-
-## 2 目录一览
+## 仓库地图
 
 ```text
-AGENTS.md           → Agent 系统提示（约束、Skill路由、目录说明）
-CLAUDE.md           → Claude Code 引流至 AGENTS.md
-config.example.json → 共享默认配置模板
-config.json         → 本地配置 SSOT，自动生成且不提交
-prompts/            → 可直接复制的中文任务 Prompt 模板
-skills/             → 过程化 agent skill（评测、profiler、benchmark、算子接入…）
-reference/
-   knowledge/    → 不可变领域规则与硬件参考
-   code-style/   → C++/Python/NPU 代码风格约定
-   io_specs/     → Artifact schema（manifest、perf、accuracy、profiling）
-   pr_history/   → 模型 dossier 与 PR 历史（可通过 scripts/query.py 查询）
-baseline/           → 性能验收标准
-scripts/            → 跨 skill 共用确定性脚本
-humanize/           → 经验飞轮（经验证的排障与调优教训）
-docs/               → NPU AI Coding 工作流文档
-tests/              → 仓库卫生与 schema 校验
-code/               → 外部源码挂载（gitignored）
-runs/               → 执行现场（gitignored）
+skills/       过程化决策与委托
+scripts/      确定性执行
+reference/    稳定知识与 IO 合约
+runs/         单任务证据；本地保存且不提交
+humanize/     经验证后沉淀的持久经验
+docs/         当前指南、架构与设计历史
+tests/        catalog、导航、schema 与 workflow 校验
 ```
 
-**`config.example.json`** 是共享默认模板. **`config.json`** 是每个开发者本地工作区的配置唯一入口 (SSOT), 会被 Git 忽略. 顶层顺序为 `code` (origin/upstream/branch/commit), 精选 xLLM CLI 参数 `xllm_config`, 说明元数据 `xllm_config_comments` 和按 `smoke`, `quick`, `full` 三档划分的 `tests`. Skills 和脚本统一读取本地 config.json, 不再硬编码.
+职责边界见[仓库与证据地图](docs/architecture/repository-map.md)。
 
-**`reference/`** 是静态知识基石 - 不可变的领域规则, 不会因单次运行而改变. Skills 从这里查询硬件限制, 代码风格, artifact schema 和历史优化上下文.
+## 贡献与支持边界
 
-**`humanize/`** 是经验飞轮——Agent 把经验证的排障教训写入此处，使工作区越用越聪明。具体 ledger 在运行根目录下生成，仅持久价值的教训回流到本目录。
+可复用决策流程进入 skills；确定性操作进入 scripts；schema 与稳定知识进入 reference；只有经验证的持久经验才进入 humanize。修改 catalog 能力前先阅读[新增或修改 skill](docs/maintainers/adding-or-changing-a-skill.md)。
 
-**`scripts/`** 是确定性引擎——跨 skill 共用的自动化脚本，LLM 不得修改脚本逻辑，变更需人工审核。
-
-**`skills/`** 包含过程化 agent skill，每个 SKILL.md 定义了执行流程、证据合约和本地 reference。方式 1 会把它们链接到生成的 `.agents/skills`；方式 2 会把它们链接到所选 agent 的 skills 目录。
-
-### 统一任务和 Run 生命周期
-
-新实验使用 [`experiment.example.yaml`](reference/io_specs/experiment.example.yaml)
-作为单一参数来源，并通过 `scripts/xllm_flow.py` 执行任务注册、preflight、
-run 创建、checkpoint、finalize 和 archive。历史 run 不要求移动；统一入口只约束
-新任务，并通过 `workspace-tasks.json` 记录 task、source、branch、run root 和状态。
-
-`preflight` 检查源码身份、submodule、二进制依赖、模型路径、端口、工具、环境版本和
-baseline 公平性。每次 attempt 由实验参数、代码和输入文件生成 fingerprint，并写入
-hash chain；finalize 会校验证据完整性，生成 checksum、checkpoint、retention 元数据和
-派生 ledger。
-
-## 3 典型工作流
-
-![xLLM AI Coding Workflow](docs/assets/xllm-ai-coding-workflow-zh.png)
-
-证据驱动闭环：每次优化从可量化目标出发，采集可比数据，做一条可 review 的改动，
-并留下可复现的 artifact。
-
-端到端 goal 必须先建立粗粒度 loss budget，并按架构算法、pipeline、operator、
-kernel 从大到小筛选；更大层级未量化或未被证据否决前，不进入局部微优化。
-
-## 4 贡献指南
-
-1. **确定性能力写成脚本** — 任何可自动化的确定性逻辑（编译、评测、profiling 收集）应固化为 `scripts/` 下的脚本，禁止 LLM 修改脚本逻辑。
-2. **可复用经验沉淀为 Skill** — 重复执行的标准工作流（如 benchmark 对比、PR review）封装为 `skills/` 下的 Skill，而非散落的零散笔记。
-3. **踩坑经验与最佳实践沉淀到 humanize** — 经验证的排障教训、调优心得、反复出现的坑点写入 `humanize/`，使工作区越用越聪明。
-4. **避免重复** — 配置、规范、提示词不多处重复；同一信息只保留一处，其他引用指向它（SSOT）。
-5. **不提交本地路径、私有 IP、凭据或非公开日志。**
-
-## 5 License
-
-当前尚未添加 license 文件。在面向更广泛外部复用前，应先补充。
+不要提交本地路径、私有主机、凭据或非公开日志。仓库当前尚无 license；广泛外部复用前应先补充。

@@ -2,147 +2,80 @@
 
 Languages: [English](README.md) | [简体中文](README_zh.md)
 
-Agent-ready workflows, prompts, schemas, and reference knowledge for NPU
-large-model serving optimization on Ascend NPUs. First landing target:
-[xLLM](https://github.com/jd-opensource/xllm); fair baselines:
-[vLLM-Ascend](https://github.com/vllm-project/vllm-ascend) and SGLang NPU.
+Evidence-driven workflows, skills, scripts, and reference knowledge for large-model serving on Ascend NPUs. **xLLM is the complete primary path.** vLLM-Ascend and SGLang are limited to the experimental adapter or artifact-analysis scopes declared in the [skill map](docs/architecture/skill-map.md).
 
-**What this repository handles:**
+## Choose your path
 
-1. **Feature design & development** — Design new NPU serving features, write code, and validate through review-gated evidence loops.
-2. **Issue diagnosis & fix** — Locate accuracy regressions, crashes, OOM, graph failures, or HCCL issues; produce reproducible evidence and validated patches.
-3. **Performance optimization** — Establish fair baselines, collect profiling evidence, identify bottlenecks, and iterate toward TPOT/TTFT/TPS targets with measurable gains.
+| Goal | Start with |
+|---|---|
+| Create, resume, finalize, or archive an experiment | `xllm-experiment-lifecycle` |
+| Optimize xLLM performance through multiple iterations | `xllm-npu-sota-loop` |
+| Run a mixed performance and accuracy suite | `xllm-npu-eval-runner` |
+| Run one performance or accuracy workload | `xllm-npu-perf-runner` or `xllm-npu-accuracy-runner` |
+| Launch, verify, smoke-test, and clean up a service | `xllm-npu-server-manager` |
+| Review fairness or a publishable performance claim | `xllm-npu-benchmark` |
+| Collect or analyze profiling evidence | `xllm-npu-profiler` or `xllm-npu-pipeline-analysis` |
+| Diagnose wrong output or a runtime/build incident | `xllm-npu-accuracy-debug` or `xllm-npu-incident-triage` |
+| Query historical model and PR lessons | `model-pr-optimization-history` |
 
-## 1 Quick Start
+For an optimization campaign, `xllm-npu-sota-loop` owns the optimization decisions while `xllm-experiment-lifecycle` owns the resumable run and evidence state.
 
-### A. Initialize xLLM And Skills
+## Five-minute start
 
-Mode 1 starts the code agent from this repository root. The script clones or
-reuses `code/xllm`, links this project's `skills/*` into `.agents/skills`, and
-links xLLM repository skills into the same generated directory.
+Initialize or reuse the xLLM checkout and install the canonical skills:
 
 ```bash
 python scripts/init_xllm_workspace.py
 ```
 
-Mode 2 starts the code agent from `code/xllm`. The same script installs this
-project's `skills/*` into the selected agent skills directory, while xLLM keeps
-using its own repository-local skills.
-
-```bash
-python scripts/init_xllm_workspace.py --mode xllm --agent codex
-```
-
-The initialization script creates local `config.json` from
-`config.example.json` when needed. It then reads xLLM repository settings from
-`config.json`; if they are missing, it asks for the Git URL and branch or
-commit, writes them back to local `config.json`, and clones `code/xllm` when the
-directory is missing or empty.
-
-### B. Start The Code Agent
-
-For Mode 1, start the code agent from this repository root so it can load
-`AGENTS.md` and the generated `.agents/skills` directory.
+Start Codex from this repository:
 
 ```bash
 codex
 ```
 
-For Mode 2, start the code agent from the xLLM repository.
+Then choose a [copy-ready prompt](prompts/) or create an experiment from [`experiment.example.yaml`](reference/io_specs/experiment.example.yaml). Follow the [getting-started guide](docs/getting-started.md) for a synthetic lifecycle walkthrough.
 
-```bash
-cd code/xllm
-codex
+## How the pieces fit together
+
+```mermaid
+flowchart LR
+  U["User intent"] --> S["Skills: decide and delegate"]
+  S --> D["Scripts: deterministic execution"]
+  D --> E["Run evidence and ledgers"]
+  R["Reference and IO contracts"] --> S
+  R --> D
+  E --> H["Promoted durable lessons"]
 ```
 
-### C. Pick A Prompt
+Lifecycle is the control plane. Orchestrators delegate bounded work to runners, analyzers, planners, and gates. Deterministic scripts produce auditable artifacts.
 
-Copy a template from [`prompts/`](prompts/) and fill in model, hardware,
-framework, workload, and target metrics.
+## Browse capabilities
 
-| Prompt | Scenario |
-|---|---|
-| [`sota-loop`](prompts/xllm-npu-sota-loop-prompts.md) | End-to-end optimization, TPOT/decode gaps, MTP validation |
-| [`eval-profiler`](prompts/xllm-npu-eval-profiler-prompts.md) | Build gates, service startup, evalscope, profiling, capacity/OOM |
-| [`pr-fix`](prompts/xllm-npu-pr-fix-prompts.md) | PR regressions, review replies, rebase, build gates |
-| [`operator-work`](prompts/xllm-npu-operator-work-prompts.md) | Operator work, Triton-Ascend AOT migration, xllm_ops runtime integration |
+- [Skill capability index](skills/README.md) — grouped by role and domain.
+- [Detailed skill architecture](docs/architecture/skill-map.md) — dependencies, scopes, intents, and outputs.
+- [Agent routing contract](AGENTS.md) — exact task-to-skill and repository constraints.
 
-### D. Execute Workflow
+## Documentation
 
-Formal work follows `target → baseline → profiling → patch → accuracy → performance → record`.
-See [AGENTS.md](AGENTS.md) for skill routing and [docs/npu-ai-coding-standard-workflow.md](docs/npu-ai-coding-standard-workflow.md) for phase details.
+Use the [documentation hub](docs/README.md) to find current user, architecture, workflow, and maintainer guides. The [standard NPU AI coding workflow](docs/npu-ai-coding-standard-workflow.md) explains the evidence-driven phases. Historical PR design records are preserved separately and are not the normal operating entry point.
 
-Use `xllm-experiment-lifecycle` for the experiment control plane. Use
-`xllm-npu-sota-loop` only for open-ended performance optimization, while one-shot evaluation,
-benchmark conclusions, and profiling remain specialist routes.
-
-## 2 Directory Overview
+## Repository map
 
 ```text
-AGENTS.md           → Agent system prompt (constraints, skill routing, directory guide)
-CLAUDE.md           → Claude Code redirect to AGENTS.md
-config.example.json → Shared default configuration template
-config.json         → Local configuration SSOT, generated and gitignored
-prompts/            → Copy-ready task prompt templates (Chinese)
-skills/             → Procedural agent skills (eval, profiler, benchmark, operator integration, …)
-reference/
-   knowledge/    → Immutable domain rules and hardware references
-   code-style/   → C++/Python/NPU code style conventions
-   io_specs/     → Artifact schemas (run manifest, perf, accuracy, profiling)
-   pr_history/   → Model dossiers and PR history (queryable via scripts/query.py)
-baseline/           → Performance acceptance criteria
-scripts/            → Cross-skill shared deterministic scripts
-humanize/           → Experience flywheel (validated troubleshooting lessons)
-docs/               → NPU AI coding workflow documentation
-tests/              → Repository hygiene and schema validators
-code/               → External source mount (gitignored)
-runs/               → Execution workspace (gitignored)
+skills/       procedural decisions and delegation
+scripts/      deterministic execution
+reference/    stable knowledge and IO contracts
+runs/         per-task evidence; local and gitignored
+humanize/     promoted validated lessons
+docs/         current guides, architecture, and design history
+tests/        catalog, navigation, schema, and workflow validation
 ```
 
-**`config.example.json`** is the shared default template. **`config.json`** is the local single source of truth for one developer's workspace and is intentionally gitignored. Its top-level order is `code` (origin/upstream/branch/commit), `xllm_config` keys for selected xLLM CLI parameters, `xllm_config_comments` metadata, and `tests` with `smoke`, `quick`, and `full` validation levels. Skills and scripts read local config.json instead of hardcoding values.
+See the [repository and evidence map](docs/architecture/repository-map.md) for ownership boundaries.
 
-**`reference/`** is the static knowledge base — immutable domain rules that never change based on a single run. Skills query it for hardware limits, code style, artifact schemas, and historical optimization context.
+## Contribution and support boundaries
 
-**`humanize/`** is the experience flywheel — Agents write validated troubleshooting lessons here, making the workspace smarter over time. Concrete ledgers live under run roots; only durable lessons are promoted back.
+Reusable decision workflows belong in skills; deterministic operations belong in scripts; schemas and stable knowledge belong in reference; only validated durable lessons are promoted to humanize. Read [Adding or changing a skill](docs/maintainers/adding-or-changing-a-skill.md) before changing cataloged capabilities.
 
-**`scripts/`** is the deterministic engine — cross-skill shared automation scripts that LLMs must not modify. Changes to these scripts require human review.
-
-**`skills/`** contains procedural agent skills, each with a SKILL.md defining the execution workflow, evidence contracts, and local references. Mode 1 links them into generated `.agents/skills`; Mode 2 links them into the selected agent skills directory.
-
-### Unified Task And Run Lifecycle
-
-New experiments use
-[`experiment.example.yaml`](reference/io_specs/experiment.example.yaml) as the
-single parameter source and `scripts/xllm_flow.py` for task registration,
-preflight, run creation, checkpoints, finalization, and archival. Existing run
-directories do not move; `workspace-tasks.json` records task, source, branch,
-run root, and lifecycle state for new work.
-
-`preflight` validates source identity, submodules, binary dependencies, model
-paths, ports, tools, environment versions, and baseline fairness. Attempts are
-fingerprinted and hash-chained; finalization validates required evidence and
-emits checksums, checkpoint state, retention metadata, and derived ledgers.
-
-## 3 Typical Workflow
-
-![xLLM AI Coding Workflow](docs/assets/xllm-ai-coding-workflow-en.png)
-
-An evidence-driven loop: each optimization starts from a measurable target,
-collects comparable data, makes one reviewable change, and leaves artifacts
-for reproduction.
-
-End-to-end goals first build a coarse loss budget and rank architecture,
-pipeline, operator, and kernel candidates in that order. Micro-optimization is
-locked until larger scopes are quantified or rejected with evidence.
-
-## 4 Contribution Guidelines
-
-1. **Deterministic capabilities go into scripts** — Any automatable deterministic logic (compile, evaluate, profiling collection) should be locked into `scripts/`; LLM must not modify script logic.
-2. **Reusable workflows become Skills** — Repeated standard workflows (benchmark comparison, PR review) should be encapsulated as `skills/` Skills, not scattered notes.
-3. **Pitfall lessons & best practices go into humanize** — Validated troubleshooting lessons, tuning insights, and recurring pitfalls belong in `humanize/`, making the workspace smarter over time.
-4. **Avoid duplication** — Configuration, specs, and prompts must not appear in multiple places; keep one source and reference it (SSOT).
-5. **Do not commit local paths, private IPs, credentials, or non-public logs.**
-
-## 5 License
-
-No license file yet. Add one before broad external reuse.
+Do not commit local paths, private hosts, credentials, or non-public logs. The repository does not currently include a license; add one before broad external reuse.

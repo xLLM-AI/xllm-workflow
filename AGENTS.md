@@ -153,3 +153,7 @@ when their adapters and runbooks are added.
   before opening a PR.
 - Update README links when adding or removing documentation entry points.
 - Keep `AGENTS.md` and `CLAUDE.md` conceptually aligned.
+- Follow [`docs/maintainers/adding-or-changing-a-skill.md`](docs/maintainers/adding-or-changing-a-skill.md)
+  for the canonical catalog, generated-doc, refresh, routing-test, and validation workflow.
+- Do not manually edit `skills/README.md` or `docs/architecture/skill-map.md`; regenerate them with
+  `python scripts/render_skill_docs.py` and verify with `--check`.
