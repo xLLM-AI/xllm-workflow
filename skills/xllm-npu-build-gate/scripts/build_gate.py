@@ -392,6 +392,130 @@ def opp_payload_snapshot(vendor_root: Path) -> dict[str, str]:
     return files
 
 
+def validate_dynamic_kernel_configs(vendor_root: Path) -> tuple[dict[str, Any], list[str]]:
+    kernel_roots = sorted((vendor_root / "op_impl").glob("**/kernel"))
+    config_files = sorted(
+        path
+        for kernel_root in kernel_roots
+        for path in (kernel_root / "config").glob("*/*.json")
+        if not path.name.endswith("_info_config.json")
+    )
+    binary_info_files = sorted(
+        path
+        for kernel_root in kernel_roots
+        for path in (kernel_root / "config").glob("*/binary_info_config.json")
+    )
+    if not config_files and not binary_info_files:
+        return {
+            "applicable": False,
+            "matches": True,
+            "reason": "no_dynamic_kernel_configs",
+        }, []
+
+    invalid_json: list[str] = []
+    missing_binary_info: list[str] = []
+    unindexed_ops: list[str] = []
+    missing_files: list[str] = []
+    mismatched_paths: list[str] = []
+    binary_info_by_arch: dict[Path, dict[str, Any]] = {}
+
+    for path in binary_info_files:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                raise ValueError("binary_info_config root must be an object")
+            binary_info_by_arch[path.parent] = data
+        except (OSError, ValueError, json.JSONDecodeError):
+            invalid_json.append(str(path.relative_to(vendor_root)))
+
+    for path in config_files:
+        relative_config = str(path.relative_to(vendor_root))
+        binary_info = binary_info_by_arch.get(path.parent)
+        if binary_info is None:
+            missing_binary_info.append(relative_config)
+            continue
+        try:
+            config = json.loads(path.read_text(encoding="utf-8"))
+            bin_list = config.get("binList", [])
+            if not isinstance(bin_list, list) or not bin_list:
+                raise ValueError("dynamic kernel config has no binList")
+        except (OSError, ValueError, json.JSONDecodeError):
+            invalid_json.append(relative_config)
+            continue
+
+        kernel_root = path.parents[2]
+        for entry in bin_list:
+            simplified_keys = entry.get("simplifiedKey", []) if isinstance(entry, dict) else []
+            op_names = {
+                key.split("/", 1)[0]
+                for key in simplified_keys
+                if isinstance(key, str) and "/" in key
+            }
+            json_path = (
+                entry.get("binInfo", {}).get("jsonFilePath")
+                if isinstance(entry, dict)
+                else None
+            )
+            if not op_names or not isinstance(json_path, str):
+                invalid_json.append(relative_config)
+                continue
+            referenced_json = kernel_root / json_path
+            referenced_binary = referenced_json.with_suffix(".o")
+            for referenced in (referenced_json, referenced_binary):
+                if not referenced.is_file():
+                    missing_files.append(str(referenced.relative_to(vendor_root)))
+            for op_name in sorted(op_names):
+                op_info = binary_info.get(op_name)
+                if not isinstance(op_info, dict):
+                    unindexed_ops.append(op_name)
+                    continue
+                indexed_paths = {
+                    item.get("jsonPath")
+                    for item in op_info.get("binaryList", [])
+                    if isinstance(item, dict)
+                }
+                if json_path not in indexed_paths:
+                    mismatched_paths.append(f"{op_name}:{json_path}")
+
+    # The aggregate index must not reference missing kernel JSON or object files.
+    for arch_root, binary_info in binary_info_by_arch.items():
+        kernel_root = arch_root.parents[1]
+        for op_name, op_info in binary_info.items():
+            if not isinstance(op_info, dict):
+                invalid_json.append(str((arch_root / "binary_info_config.json").relative_to(vendor_root)))
+                continue
+            for entry in op_info.get("binaryList", []):
+                if not isinstance(entry, dict):
+                    continue
+                for key in ("jsonPath", "binPath"):
+                    relative_path = entry.get(key)
+                    if isinstance(relative_path, str) and not (kernel_root / relative_path).is_file():
+                        missing_files.append(str((kernel_root / relative_path).relative_to(vendor_root)))
+
+    details = {
+        "applicable": True,
+        "config_file_count": len(config_files),
+        "binary_info_file_count": len(binary_info_files),
+        "invalid_json": sorted(set(invalid_json)),
+        "missing_binary_info": sorted(set(missing_binary_info)),
+        "unindexed_ops": sorted(set(unindexed_ops)),
+        "missing_files": sorted(set(missing_files)),
+        "mismatched_paths": sorted(set(mismatched_paths)),
+    }
+    details["matches"] = not any(
+        details[key]
+        for key in (
+            "invalid_json",
+            "missing_binary_info",
+            "unindexed_ops",
+            "missing_files",
+            "mismatched_paths",
+        )
+    )
+    failures = [] if details["matches"] else ["xllm_ops_dynamic_kernel_config_mismatch"]
+    return details, failures
+
+
 def find_opp_package_vendor(
     repo: Path, marker: Path, requested: Path | None
 ) -> Path | None:
@@ -432,6 +556,8 @@ def validate_opp_payload(
         failures.append("xllm_ops_payload_installation_empty")
     if missing or unexpected or mismatched:
         failures.append("xllm_ops_payload_mismatch")
+    dynamic_kernel_config, config_failures = validate_dynamic_kernel_configs(installed_root)
+    failures.extend(config_failures)
     return {
         "installed_root": str(installed_root),
         "package_root": str(package_root) if package_root else None,
@@ -442,7 +568,15 @@ def validate_opp_payload(
         "missing": missing,
         "unexpected": unexpected,
         "mismatched": mismatched,
-        "matches": bool(expected and installed and not missing and not unexpected and not mismatched),
+        "dynamic_kernel_config": dynamic_kernel_config,
+        "matches": bool(
+            expected
+            and installed
+            and not missing
+            and not unexpected
+            and not mismatched
+            and dynamic_kernel_config["matches"]
+        ),
     }, failures
 
 

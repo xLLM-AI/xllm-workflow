@@ -37,6 +37,8 @@
 - CMake、submodule、required patch identity。
 - xllm_ops 构建后重新采集的 source/marker identity，以及 CPack staging 和安装 OPP 的
   payload 文件数、整体 digest、缺失/多余/哈希不一致文件。
+- 安装 OPP 中动态 kernel config 的文件数、无效 JSON、未进入聚合索引的算子、缺失的
+  kernel JSON/`.o` 和索引路径不一致项。
 - 实际策略、构建命令和每条命令退出码。
 - 每条命令是否因无输出超时，以及超时前最后一行 family/variant 进度。
 - binary path、SHA256、size、ELF `file` 输出和 `ldd -r` 输出。

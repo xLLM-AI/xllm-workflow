@@ -37,6 +37,16 @@ skill 发起的构建因此不能交叉覆盖 vendor；绕过 skill 的手工安
 无法找到 staging、marker 未刷新，或 payload 存在缺失、多余、哈希不一致时返回
 `FAILED`。不得仅凭 marker 相等或 `ldd -r` 成功进入 benchmark。
 
+AscendC 算子全部编译完成后再统一生成 config。门禁会逐架构检查：
+
+- 单算子 config 的每个 `binInfo.jsonFilePath` 都存在对应 kernel JSON 和 `.o`。
+- 单算子 config 中的算子名存在于同目录 `binary_info_config.json`。
+- 聚合索引的 `jsonPath`/`binPath` 与单算子 config 一致且文件存在。
+
+这会拦截“后补编某个 kernel，但沿用先前生成的聚合配置”产生的
+`ParseDynamicKernelConfig` 运行时错误。CANN 版本升级时还应先做完整编译，及时发现
+同步原语等接口是否需要显式 `AscendC::` 命名空间；不能用单算子补编掩盖编译失败。
+
 ## Official performance versus profiling
 
 正式性能 run 与 profiling run 必须分开。build verdict 只证明 binary 来源和依赖闭合，

@@ -72,6 +72,8 @@ cache，也不执行 `xllm_ops` 检查。xLLM 保留原有 CMake、TileLang 和 
   不得复用 preflight 快照。
 - CPack staging 与实际安装 OPP 中 `op_impl`、`op_proto`、`op_api` 的文件集合及 SHA256；
   缺文件、多文件或内容不同均返回 `FAILED`。
+- 对每个 AscendC 动态算子校验单算子 config、`binary_info_config.json`、kernel JSON 和
+  `.o` 的闭包关系；算子未进入聚合索引、索引路径不一致或产物缺失均返回 `FAILED`。
 - xllm_ops 构建和主构建共享同一把主机级 OPP 文件锁，防止不同 worktree 并发覆盖全局 vendor。
 - 每个 `--required-patch` 的 SHA256，以及是否已应用到候选源码。
 - 最终 binary 的路径、SHA256、大小、`file` 和 `ldd -r`。
@@ -89,6 +91,7 @@ cache，也不执行 `xllm_ops` 检查。xLLM 保留原有 CMake、TileLang 和 
 | vLLM-Ascend/SGLang kernel 或 extension 变化 | `framework-targeted` |
 | `xllm_ops` HEAD 与 OPP marker 不一致 | 在主构建前追加 `rebuild_and_install_xllm_ops` |
 | 构建后 marker 未刷新或 OPP payload 与 CPack staging 不一致 | `FAILED`，禁止消费 binary |
+| 动态 kernel 已编译但 config 未在最后重新生成，或聚合索引缺失该算子 | `FAILED`，禁止启动服务 |
 | submodule 未初始化/冲突、必需 patch 缺失、工具链不可证明 | `BLOCKED` |
 
 ### Fresh worktree / rebase
