@@ -110,6 +110,8 @@ identity 不一致，必须选择 `reconfigure`，不能直接复用旧增量产
   `build.log`。
 - `--no-output-timeout` 默认 `900` 秒；超时会 TERM/KILL 当前构建、记录最后一行
   family/variant 进度并返回 `FAILED`，不得无限等待。
+- 构建命令在继承当前环境的非 login Bash 中执行。CANN、Python 等工具链环境必须在
+  调用 build gate 前加载；不要依赖主机 login profile 在构建期间隐式修改环境。
 
 ### 测试并发变量
 

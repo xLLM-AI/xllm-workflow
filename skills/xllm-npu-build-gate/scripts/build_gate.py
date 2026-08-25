@@ -796,7 +796,7 @@ def execute_commands(
             log.write(f"$ {command}\n")
             log.flush()
             process = subprocess.Popen(
-                ["bash", "-lc", command],
+                ["bash", "-c", command],
                 cwd=repo,
                 env=environment,
                 text=True,

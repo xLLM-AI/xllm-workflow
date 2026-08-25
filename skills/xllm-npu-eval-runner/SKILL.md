@@ -273,7 +273,7 @@ $RUN_ROOT/
 生成 `$RUN_ROOT/run-evidence.json`，然后执行：
 
 ```bash
-python scripts/validate_run_evidence.py --run-root "$RUN_ROOT"
+python <repo_root>/scripts/validate_run_evidence.py --run-root "$RUN_ROOT"
 ```
 
 只有 `evidence-verdict.json` 为 `PASS` 且 `claim_scope=formal` 才能给 formal claim。`INCONCLUSIVE` 只能用于

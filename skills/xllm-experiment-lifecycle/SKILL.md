@@ -5,7 +5,7 @@ description: xLLM 实验生命周期入口。用于创建或恢复 run root、�
 
 # xLLM 实验生命周期
 
-本 skill 是 `scripts/xllm_flow.py` 的公开门面。它统一管理实验状态和证据链，专项
+本 skill 是 [`../../scripts/xllm_flow.py`](../../scripts/xllm_flow.py) 的公开门面。它统一管理实验状态和证据链，专项
 工作仍委托给对应 skill，不复制 build、service、benchmark、accuracy 或 profiling
 实现。
 
@@ -36,28 +36,28 @@ REGISTRY="$WORKSPACE_ROOT/workspace-tasks.json"
 RUN_ROOT=/path/from/experiment.yaml
 TASK_ID=/task-id/from/experiment.yaml
 
-python scripts/xllm_flow.py preflight --spec experiment.yaml --output "$RUN_ROOT/env"
-python scripts/xllm_flow.py --workspace-root "$WORKSPACE_ROOT" --registry "$REGISTRY" \
+python <repo_root>/scripts/xllm_flow.py preflight --spec experiment.yaml --output "$RUN_ROOT/env"
+python <repo_root>/scripts/xllm_flow.py --workspace-root "$WORKSPACE_ROOT" --registry "$REGISTRY" \
   run create --spec experiment.yaml
 # 恢复时读取 "$RUN_ROOT/CHECKPOINT.md"，推进阶段时使用 checkpoint 子命令。
 # 专项 skill 执行 build -> service -> benchmark；每个结果通过 attempt add 记录。
 # performance specialist 将原始结果写入 perf/raw/，规范化指标写入 perf/metrics.json。
-python scripts/xllm_flow.py attempt add --run-root "$RUN_ROOT" --spec experiment.yaml \
+python <repo_root>/scripts/xllm_flow.py attempt add --run-root "$RUN_ROOT" --spec experiment.yaml \
   --attempt-id baseline-r0 --phase benchmark --status pass --hypothesis baseline \
   --metrics-json "$RUN_ROOT/perf/metrics.json" \
   --artifact perf/metrics.json --repeat-index 0
 
-python scripts/xllm_flow.py run validate --run-root "$RUN_ROOT" --status pass
-python scripts/xllm_flow.py export evidence --run-root "$RUN_ROOT"
-python scripts/xllm_flow.py gate all --run-root "$RUN_ROOT" \
+python <repo_root>/scripts/xllm_flow.py run validate --run-root "$RUN_ROOT" --status pass
+python <repo_root>/scripts/xllm_flow.py export evidence --run-root "$RUN_ROOT"
+python <repo_root>/scripts/xllm_flow.py gate all --run-root "$RUN_ROOT" \
   --require build --require service --require evidence
-python scripts/xllm_flow.py --workspace-root "$WORKSPACE_ROOT" \
+python <repo_root>/scripts/xllm_flow.py --workspace-root "$WORKSPACE_ROOT" \
   run finalize --run-root "$RUN_ROOT" --status pass \
   --reviewed-by "$USER" --retention-decision keep \
   --kept-path perf/metrics.json
 
 # 检查生成的 retention-review.md，再通过同一个 workspace registry 归档。
-python scripts/xllm_flow.py --workspace-root "$WORKSPACE_ROOT" --registry "$REGISTRY" \
+python <repo_root>/scripts/xllm_flow.py --workspace-root "$WORKSPACE_ROOT" --registry "$REGISTRY" \
   run archive --task-id "$TASK_ID"
 ```
 
@@ -68,7 +68,7 @@ python scripts/xllm_flow.py --workspace-root "$WORKSPACE_ROOT" --registry "$REGI
 至少应包含：
 
 ```bash
-python scripts/xllm_flow.py gate all --run-root "$RUN_ROOT" \
+python <repo_root>/scripts/xllm_flow.py gate all --run-root "$RUN_ROOT" \
   --require build --require service --require evidence --require big-rock \
   --require fairness --fairness-root "$FAIRNESS_ROOT"
 ```

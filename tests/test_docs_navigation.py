@@ -68,6 +68,15 @@ def test_curated_navigation_local_links_resolve():
                 assert target.exists(), (path.relative_to(ROOT), link)
 
 
+def test_skill_local_links_resolve():
+    for path in ROOT.glob("skills/*/SKILL.md"):
+        for link in markdown_links(path):
+            target = local_target(path, link)
+            if target is not None:
+                assert ROOT in target.parents
+                assert target.exists(), (path.relative_to(ROOT), link)
+
+
 def test_generated_docs_are_not_presented_as_hand_edited():
     guide = (ROOT / "docs/maintainers/adding-or-changing-a-skill.md").read_text(encoding="utf-8")
     assert "不得手工编辑" in guide

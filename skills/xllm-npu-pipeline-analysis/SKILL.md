@@ -39,7 +39,7 @@ profiling/<run_id>/
 推荐用脚本生成骨架和 decode bubble 统计：
 
 ```bash
-python skills/xllm-npu-pipeline-analysis/scripts/create_pipeline_artifacts.py \
+python <skill_dir>/scripts/create_pipeline_artifacts.py \
   --run-dir /path/to/profiling/<run_id> \
   --workload "input=5000 output=50 parallel=1 warmup=5" \
   --framework xllm \

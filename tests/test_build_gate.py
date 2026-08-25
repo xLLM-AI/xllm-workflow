@@ -572,6 +572,7 @@ def test_no_output_timeout_stops_stalled_build_and_records_progress(tmp_path):
         run_root,
         "--execute",
         "--incremental-command",
+        "if shopt -q login_shell; then exit 99; fi; "
         "printf 'family=attention variants=32\\n'; sleep 5",
         "--binary",
         "/bin/true",
