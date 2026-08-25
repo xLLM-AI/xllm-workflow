@@ -2,6 +2,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shlex
 import shutil
 import subprocess
 import sys
@@ -100,6 +101,15 @@ def make_opp_payload(root, content="fresh kernel\n"):
     return root
 
 
+def add_opp_symbol_library(root, symbols):
+    library = root / "op_api/lib/libcust_opapi.so"
+    library.parent.mkdir(parents=True, exist_ok=True)
+    source = root / "op_api/symbols.c"
+    source.write_text("\n".join(f"void {symbol}(void) {{}}" for symbol in symbols) + "\n")
+    command("gcc", "-shared", "-fPIC", source, "-o", library)
+    return root
+
+
 def add_dynamic_kernel_config(root, *, index_op=True, include_binary=True):
     kernel_root = root / "op_impl/ai_core/tbe/kernel"
     arch = "ascend910_93"
@@ -149,12 +159,12 @@ def test_selects_incremental_build_and_writes_provenance(tmp_path):
         run_root,
         "--execute",
         "--incremental-command",
-        "true",
+        "test -z \"${CTEST_PARALLEL+x}\" && test -z \"${CTEST_PARALLEL_LEVEL+x}\"",
         "--binary",
         "/bin/true",
         "--jobs",
         "16",
-        env={"CTEST_PARALLEL_LEVEL": "640"},
+        env={"CTEST_PARALLEL": "99", "CTEST_PARALLEL_LEVEL": "640"},
     )
 
     assert result.returncode == 0, result.stderr
@@ -167,11 +177,9 @@ def test_selects_incremental_build_and_writes_provenance(tmp_path):
     assert provenance["binary"]["sha256"]
     normalized = environment["normalized_build_environment"]
     assert normalized["CMAKE_BUILD_PARALLEL_LEVEL"] == "16"
-    assert normalized["CTEST_PARALLEL"] == "16"
-    assert normalized["CTEST_PARALLEL_LEVEL_ignored"] == "640"
     assert normalized["MAX_JOBS"] == "16"
     assert (run_root / "build/submodules.txt").is_file()
-    assert (run_root / "build/build.log").read_text().startswith("$ true")
+    assert (run_root / "build/build.log").read_text().startswith("$ test -z")
 
 
 def test_cache_identity_mismatch_forces_reconfigure(tmp_path):
@@ -333,8 +341,6 @@ def test_xllm_ops_marker_mismatch_fails_when_reinstall_does_not_refresh_marker(t
         "--execute",
         "--opp-marker",
         marker,
-        "--xllm-ops-command",
-        "echo rebuild-opp",
         "--configure-command",
         "echo build-xllm",
         "--binary",
@@ -344,12 +350,43 @@ def test_xllm_ops_marker_mismatch_fails_when_reinstall_does_not_refresh_marker(t
     assert result.returncode == 1
     plan = read_artifact(run_root, "build-plan.json")
     provenance = read_artifact(run_root, "binary-provenance.json")
-    assert plan["actions"][0] == "rebuild_and_install_xllm_ops"
-    assert plan["commands"] == ["echo rebuild-opp", "echo build-xllm"]
+    assert plan["strategy"] == "reconfigure"
+    assert "verify_configure_managed_xllm_ops_rebuild" in plan["actions"]
+    assert plan["commands"] == ["echo build-xllm"]
     assert provenance["xllm_ops"]["matches"] is False
     assert "xllm_ops_post_build_marker_mismatch" in read_artifact(
         run_root, "verdict.json"
     )["failures"]
+
+
+def test_incremental_xllm_ops_mismatch_still_requires_explicit_rebuild_command(tmp_path):
+    repo = init_repo(tmp_path)
+    ops, _ = init_xllm_ops(repo)
+    command("git", "add", "third_party/xllm_ops", cwd=repo)
+    command("git", "commit", "-m", "add xllm ops", cwd=repo)
+    make_cache(repo)
+    marker = tmp_path / ".xllm_ops_git_head"
+    marker.write_text("0" * 40 + "\n")
+    run_root = tmp_path / "run"
+
+    result = invoke(
+        repo,
+        run_root,
+        "--execute",
+        "--opp-marker",
+        marker,
+        "--incremental-command",
+        "echo build-xllm",
+        "--binary",
+        "/bin/true",
+    )
+
+    assert result.returncode == 2
+    plan = read_artifact(run_root, "build-plan.json")
+    verdict = read_artifact(run_root, "verdict.json")
+    assert plan["strategy"] == "incremental"
+    assert plan["actions"][0] == "rebuild_and_install_xllm_ops"
+    assert "xllm_ops_rebuild_command_missing" in verdict["blockers"]
 
 
 def test_xllm_ops_post_build_payload_mismatch_fails(tmp_path):
@@ -414,8 +451,118 @@ def test_xllm_ops_matching_marker_and_payload_pass(tmp_path):
     assert result.returncode == 0, result.stderr
     provenance = read_artifact(run_root, "binary-provenance.json")
     assert provenance["xllm_ops"]["matches"] is True
+    assert provenance["xllm_ops"]["source_matches"] is True
+    assert (installed / ".xllm_ops_source_identity.json").is_file()
     assert provenance["xllm_ops"]["payload"]["matches"] is True
     assert read_artifact(run_root, "environment.json")["opp_lock"]["acquired"] is True
+
+
+def test_xllm_ops_source_change_during_build_is_recorded_but_not_blocking(tmp_path):
+    repo = init_repo(tmp_path)
+    _, ops_head = init_xllm_ops(repo)
+    installed = make_opp_payload(tmp_path / "opp/vendors/custom_xllm_math")
+    package = make_opp_payload(tmp_path / "package/vendors/custom_xllm_math")
+    marker = installed / ".xllm_ops_git_head"
+    marker.write_text("0" * 40 + "\n")
+    op_source = repo / "third_party/xllm_ops/op.cc"
+    build_command = (
+        f"printf '// generated compatibility rewrite\\n' > {shlex.quote(str(op_source))}; "
+        f"printf '{ops_head}\\n' > {shlex.quote(str(marker))}"
+    )
+    run_root = tmp_path / "run"
+
+    result = invoke(
+        repo,
+        run_root,
+        "--execute",
+        "--opp-marker",
+        marker,
+        "--opp-package-root",
+        package,
+        "--configure-command",
+        build_command,
+        "--binary",
+        "/bin/true",
+    )
+
+    assert result.returncode == 0, result.stderr
+    provenance = read_artifact(run_root, "binary-provenance.json")
+    ops = provenance["xllm_ops"]
+    assert read_artifact(run_root, "verdict.json")["status"] == "PASS"
+    assert ops["source_changed_during_build"] is True
+    assert ops["source_change_gate"] == "disabled"
+    assert ops["payload"]["matches"] is True
+
+
+def test_xllm_ops_local_source_change_invalidates_matching_head_marker(tmp_path):
+    repo = init_repo(tmp_path)
+    make_cache(repo)
+    ops, ops_head = init_xllm_ops(repo)
+    installed = make_opp_payload(tmp_path / "opp/vendors/custom_xllm_math")
+    package = make_opp_payload(tmp_path / "package/vendors/custom_xllm_math")
+    marker = installed / ".xllm_ops_git_head"
+    marker.write_text(ops_head + "\n")
+
+    first = invoke(
+        repo,
+        tmp_path / "first",
+        "--execute",
+        "--opp-marker",
+        marker,
+        "--opp-package-root",
+        package,
+        "--configure-command",
+        "true",
+        "--binary",
+        "/bin/true",
+    )
+    assert first.returncode == 0, first.stderr
+
+    (ops / "op.cc").write_text("// locally patched op\n")
+    identity = gate.xllm_ops_identity(repo, marker)
+    assert identity["head_matches"] is True
+    assert identity["source_matches"] is False
+    assert identity["rebuild_required"] is True
+
+
+def test_xllm_ops_required_runtime_symbol_is_enforced(tmp_path):
+    repo = init_repo(tmp_path)
+    make_cache(repo)
+    _, ops_head = init_xllm_ops(repo)
+    installed = add_opp_symbol_library(
+        make_opp_payload(tmp_path / "opp/vendors/custom_xllm_math"),
+        ["aclnnAnotherOp"],
+    )
+    package = add_opp_symbol_library(
+        make_opp_payload(tmp_path / "package/vendors/custom_xllm_math"),
+        ["aclnnAnotherOp"],
+    )
+    marker = installed / ".xllm_ops_git_head"
+    marker.write_text(ops_head + "\n")
+    run_root = tmp_path / "run"
+
+    result = invoke(
+        repo,
+        run_root,
+        "--execute",
+        "--opp-marker",
+        marker,
+        "--opp-package-root",
+        package,
+        "--configure-command",
+        "true",
+        "--binary",
+        "/bin/true",
+        "--required-opp-symbol",
+        "aclnnMegaChunkGdn",
+    )
+
+    assert result.returncode == 1
+    payload = read_artifact(run_root, "binary-provenance.json")["xllm_ops"]["payload"]
+    assert payload["required_symbols"]["missing"] == ["aclnnMegaChunkGdn"]
+    assert "xllm_ops_required_symbol_missing" in read_artifact(
+        run_root, "verdict.json"
+    )["failures"]
 
 
 def test_xllm_ops_unindexed_dynamic_kernel_config_fails(tmp_path):
@@ -487,6 +634,51 @@ def test_xllm_ops_matching_dynamic_kernel_config_passes(tmp_path):
     assert result.returncode == 0, result.stderr
     provenance = read_artifact(run_root, "binary-provenance.json")
     assert provenance["xllm_ops"]["payload"]["dynamic_kernel_config"]["matches"] is True
+
+
+def test_xllm_ops_stale_dynamic_kernel_object_fails(tmp_path):
+    repo = init_repo(tmp_path)
+    make_cache(repo)
+    ops, ops_head = init_xllm_ops(repo)
+    source = ops / "xllm_ops/mc2/dispatch_ffn_combine/op_kernel/kernel.h"
+    source.parent.mkdir(parents=True)
+    source.write_text("// current ABI\n")
+    installed = make_opp_payload(tmp_path / "opp/vendors/custom_xllm_math")
+    package = make_opp_payload(tmp_path / "package/vendors/custom_xllm_math")
+    package_object = package / (
+        "op_impl/ai_core/tbe/kernel/ascend910_93/dispatch_ffn_combine/kernel.o"
+    )
+    package_object.parent.mkdir(parents=True)
+    package_object.write_text("stale kernel\n")
+    installed_object = installed / package_object.relative_to(package)
+    installed_object.parent.mkdir(parents=True)
+    installed_object.write_text("stale kernel\n")
+    old = source.stat().st_mtime - 60
+    os.utime(package_object, (old, old))
+    os.utime(installed_object, (old, old))
+    marker = installed / ".xllm_ops_git_head"
+    marker.write_text(ops_head + "\n")
+
+    result = invoke(
+        repo,
+        tmp_path / "run",
+        "--execute",
+        "--opp-marker",
+        marker,
+        "--opp-package-root",
+        package,
+        "--configure-command",
+        "true",
+        "--binary",
+        "/bin/true",
+    )
+
+    assert result.returncode == 1
+    payload = read_artifact(tmp_path / "run", "binary-provenance.json")["xllm_ops"]["payload"]
+    assert payload["dynamic_kernel_freshness"]["stale"][0]["op"] == "dispatch_ffn_combine"
+    assert "xllm_ops_dynamic_kernel_stale" in read_artifact(
+        tmp_path / "run", "verdict.json"
+    )["failures"]
 
 
 def test_vllm_ascend_adapter_does_not_require_cmake_or_xllm_ops(tmp_path):
@@ -572,6 +764,7 @@ def test_no_output_timeout_stops_stalled_build_and_records_progress(tmp_path):
         run_root,
         "--execute",
         "--incremental-command",
+        "if shopt -q login_shell; then exit 99; fi; "
         "printf 'family=attention variants=32\\n'; sleep 5",
         "--binary",
         "/bin/true",

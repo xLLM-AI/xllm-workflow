@@ -15,7 +15,13 @@ WARMUP_NUM="${WARMUP_NUM:-2}"
 INPUT_TOKENS="${INPUT_TOKENS:-20000}"
 OUTPUT_TOKENS="${OUTPUT_TOKENS:-1024}"
 OUTPUT_DIR="${OUTPUT_DIR:-outputs}"
-EXTRA_ARGS="${EXTRA_ARGS:-{\"ignore_eos\": true}}"
+if [ -z "${EXTRA_ARGS+x}" ]; then
+  EXTRA_ARGS='{"ignore_eos": true}'
+fi
+SEED="${SEED:-}"
+TEMPERATURE="${TEMPERATURE:-}"
+TOP_P="${TOP_P:-}"
+STREAM="${STREAM:-false}"
 
 if [[ ! "$WARMUP_NUM" =~ ^[0-9]+$ ]]; then
   echo "ERROR: WARMUP_NUM must be a non-negative integer, got: $WARMUP_NUM" >&2
@@ -38,7 +44,7 @@ for parallel in "${PARALLELS[@]}"; do
   fi
   actual_number=$((NUMBER * parallel))
   echo "=== Running evalscope perf: parallel=$parallel, number=$actual_number ==="
-  evalscope perf \
+  cmd=(evalscope perf \
     --parallel "$parallel" \
     --number "$actual_number" \
     --model "$MODEL" \
@@ -53,5 +59,10 @@ for parallel in "${PARALLELS[@]}"; do
     --max-prompt-length "$INPUT_TOKENS" \
     --tokenizer-path "$TOKENIZER_PATH" \
     --outputs-dir "$OUTPUT_DIR" \
-    --extra-args "$EXTRA_ARGS"
+    --extra-args "$EXTRA_ARGS")
+  [ -z "$SEED" ] || cmd+=(--seed "$SEED")
+  [ -z "$TEMPERATURE" ] || cmd+=(--temperature "$TEMPERATURE")
+  [ -z "$TOP_P" ] || cmd+=(--top-p "$TOP_P")
+  [ "$STREAM" != true ] || cmd+=(--stream)
+  "${cmd[@]}"
 done

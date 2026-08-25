@@ -57,6 +57,22 @@ def test_parsers_keep_logic_to_chip_mapping_and_processes():
     assert processes[0][0]["pid"] == 123
 
 
+def test_ascend_summary_maps_device_pid_to_current_namespace_pid():
+    summary = """
+| NPU     Chip | Process id | Process name | Process memory(MB) | Process id in container |
+| 7       0    | 351533     |              | 51409              | 4109018                 |
+"""
+    mapping = capture.parse_container_pid_mapping(summary)
+    processes = capture.apply_container_pid_mapping(
+        [{"pid": 351533, "name": "", "memory_mb": 51409}], 7, 0, mapping
+    )
+
+    assert mapping == {(7, 0, 351533): 4109018}
+    assert processes == [
+        {"pid": 4109018, "device_pid": 351533, "name": "", "memory_mb": 51409}
+    ]
+
+
 def test_replay_capture_writes_normalized_snapshot(tmp_path):
     replay = tmp_path / "replay"
     write(replay / "mapping.txt", MAPPING)
@@ -94,7 +110,7 @@ def test_replay_capture_writes_normalized_snapshot(tmp_path):
     assert snapshot["host"]["swap_used_bytes"] == 25 * 1024
     assert snapshot["collection_errors"] == []
     assert snapshot["backend"] == "ascend-npu"
-    assert snapshot["parser_version"] == 2
+    assert snapshot["parser_version"] == 3
     assert (raw / "mapping.txt").is_file()
 
 

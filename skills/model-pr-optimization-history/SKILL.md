@@ -18,17 +18,18 @@ description: 查询 xLLM 模型 dossier 和历史 PR 中的优化、风险与验
 
 ### Step 1: 查询历史经验
 
-使用 `scripts/query.py` 查询模型档案：
+使用仓库级共享脚本
+[`../../scripts/query.py`](../../scripts/query.py) 查询模型档案：
 
 ```bash
 # 按模型查询
-python scripts/query.py --model Qwen3.5
+python <repo_root>/scripts/query.py --model Qwen3.5
 
 # 按关键词查询
-python scripts/query.py --keyword mtp --keyword graph
+python <repo_root>/scripts/query.py --keyword mtp --keyword graph
 
 # 按框架和代码路径查询
-python scripts/query.py \
+python <repo_root>/scripts/query.py \
     --framework xllm \
     --path MTPWorkerImpl::run_validate \
     --verbose
@@ -36,8 +37,8 @@ python scripts/query.py \
 
 ### Step 2: 整理优化历史
 
-将经过验证的新结论整理到 `reference/pr_history/<model>.md`。字段参考
-`reference/pr_history/card-schema.md`：
+将经过验证的新结论整理到 `../../reference/pr_history/<model>.md`。字段参考
+[`../../reference/pr_history/card-schema.md`](../../reference/pr_history/card-schema.md)：
 
 ```markdown
 ## Case: <short title>
@@ -68,9 +69,10 @@ python scripts/query.py \
 
 ## 模型档案目录
 
-- `reference/pr_history/deepseek-v3.md` — DeepSeek-V3 (MoE)
-- `reference/pr_history/qwen35-mtp.md` — Qwen3.5 / Qwen3 Next / Qwen3.6 / MTP / graph / VLM / PD
-- `reference/pr_history/glm-5.md` — GLM-5 系列
+- [`../../reference/pr_history/deepseek-v3.md`](../../reference/pr_history/deepseek-v3.md) — DeepSeek-V3 (MoE)
+- [`../../reference/pr_history/qwen35-mtp.md`](../../reference/pr_history/qwen35-mtp.md) —
+  Qwen3.5 / Qwen3 Next / Qwen3.6 / MTP / graph / VLM / PD
+- [`../../reference/pr_history/glm-5.md`](../../reference/pr_history/glm-5.md) — GLM-5 系列
 
 ## 维护
 

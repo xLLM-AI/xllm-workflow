@@ -21,7 +21,8 @@ run 元信息遵循
 [`../../reference/io_specs/run-manifest-template.md`](../../reference/io_specs/run-manifest-template.md)。
 Profiling run 用于解释瓶颈，不直接替代无 profiling 的 before/after 性能数据。
 采集结束后还必须生成 `run-evidence.json` 并运行
-`scripts/validate_run_evidence.py`；缺 `PROF_*`、export、warmup 证明、父 PID、成功 workload
+[`../../scripts/validate_run_evidence.py`](../../scripts/validate_run_evidence.py)；缺
+`PROF_*`、export、warmup 证明、父 PID、成功 workload
 或一致 binary provenance 时，统一输出 `INCONCLUSIVE`，不得晋升为共享优化经验。
 
 当 profiling 结论涉及 decode-step gap、graph replay gap、host bubble、pipeline
@@ -67,7 +68,7 @@ profiling 作为正式 hostbound 结论。
 ### 1. 已有 trace 分析
 
 ```bash
-python scripts/analyze_xllm_npu_profile.py \
+python <skill_dir>/scripts/analyze_xllm_npu_profile.py \
   --input /path/to/profiling_results/ \
   --framework xllm
 ```
@@ -125,7 +126,7 @@ xllm ... --port 38050 ...
 ps -ef | grep xllm
 
 # 3. 使用 msprof dynamic attach 采集
-scripts/run_profiling.sh <xllm_parent_pid> ./xllm_profile full
+<skill_dir>/scripts/run_profiling.sh <xllm_parent_pid> ./xllm_profile full
 ```
 
 `run_profiling.sh` 的核心采集方式：
@@ -157,7 +158,7 @@ msprof --export=on --output="$LATEST_PROF"
 采集完成后分析导出的 `mindstudio_profiler_output/`：
 
 ```bash
-python scripts/analyze_xllm_npu_profile.py \
+python <skill_dir>/scripts/analyze_xllm_npu_profile.py \
   --input /path/to/xllm_profile_YYYYMMDD_HHMMSS/PROF_xxx \
   --framework xllm
 ```
@@ -172,7 +173,7 @@ VLLM_WORKER_MULTIPROC_METHOD=spawn vllm serve /path/to/model \
   --tensor-parallel-size 4 \
   --profiler-config '{"profiler":"torch","torch_profiler_dir":"/tmp/vllm-profile"}'
 
-python scripts/analyze_xllm_npu_profile.py \
+python <skill_dir>/scripts/analyze_xllm_npu_profile.py \
   --input /tmp/vllm-profile/PROF_xxx \
   --framework vllm-ascend \
   --output /tmp/vllm-profile-analysis.json
@@ -181,12 +182,12 @@ python scripts/analyze_xllm_npu_profile.py \
 ### 4. 两阶段 trace 分析（eager/graph-on 对比）
 
 ```bash
-python scripts/analyze_xllm_npu_profile.py \
+python <skill_dir>/scripts/analyze_xllm_npu_profile.py \
   --input /path/to/eager_profile/PROF_xxx \
   --framework xllm \
   --output /tmp/eager-profile-analysis.json
 
-python scripts/analyze_xllm_npu_profile.py \
+python <skill_dir>/scripts/analyze_xllm_npu_profile.py \
   --input /path/to/graph_on_profile/PROF_xxx \
   --framework xllm \
   --output /tmp/graph-profile-analysis.json
@@ -204,18 +205,18 @@ formal trace 用于实际性能分析。
 ```bash
 # Prefill-focused: 长输入、短输出
 INPUT_TOKENS=4090 OUTPUT_TOKENS=1 \
-  scripts/run_profiling.sh <xllm_parent_pid> /tmp/xllm-prefill full
+  <skill_dir>/scripts/run_profiling.sh <xllm_parent_pid> /tmp/xllm-prefill full
 
-python scripts/analyze_xllm_npu_profile.py \
+python <skill_dir>/scripts/analyze_xllm_npu_profile.py \
   --input /tmp/xllm-prefill_YYYYMMDD_HHMMSS/PROF_xxx \
   --framework xllm \
   --output /tmp/xllm-prefill-analysis.json
 
 # Decode-focused: 短输入、长输出
 INPUT_TOKENS=1 OUTPUT_TOKENS=2048 \
-  scripts/run_profiling.sh <xllm_parent_pid> /tmp/xllm-decode full
+  <skill_dir>/scripts/run_profiling.sh <xllm_parent_pid> /tmp/xllm-decode full
 
-python scripts/analyze_xllm_npu_profile.py \
+python <skill_dir>/scripts/analyze_xllm_npu_profile.py \
   --input /tmp/xllm-decode_YYYYMMDD_HHMMSS/PROF_xxx \
   --framework xllm \
   --output /tmp/xllm-decode-analysis.json
@@ -278,7 +279,7 @@ python scripts/analyze_xllm_npu_profile.py \
 ## 渲染五表 Markdown
 
 ```bash
-python scripts/render_triage_npu.py \
+python <skill_dir>/scripts/render_triage_npu.py \
   --analysis-root /path/to/analysis_root \
   --output /path/to/analysis_bundle.md
 ```

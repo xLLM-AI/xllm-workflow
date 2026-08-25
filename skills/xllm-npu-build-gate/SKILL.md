@@ -8,6 +8,10 @@ description: xLLM、vLLM-Ascend、SGLang NPU 可执行构建门禁。识别 chec
 本 skill 是 benchmark 的强制前置层。它主动检查环境、选择构建策略、执行构建并保存
 provenance；无法证明源码、build tree 和 binary 一致时返回 `BLOCKED`，不继续测评。
 
+本门禁只负责构建，不运行测试。xLLM 使用 `python setup.py build` 或显式的目标构建命令；
+不得自动追加 `test`、调用 CTest，或把全量单测作为 binary verdict 的前置条件。只有用户
+明确要求测试时，才由对应测试流程单独执行并单独报告。
+
 ## 职责边界
 
 | 阶段 | 责任方 |
@@ -68,12 +72,17 @@ cache，也不执行 `xllm_ops` 检查。xLLM 保留原有 CMake、TileLang 和 
 - 当前 Python headers、`torch`/`torch_npu`、libtorch ABI 和 ATB header。
 - 正式 eval 前加 `--require-npu`，检查 `npu-smi` 和 `/dev/davinci*` 等设备节点；
   相关进程快照写入 `environment.json`。
-- `third_party/xllm_ops` HEAD 与 `.xllm_ops_git_head` OPP marker；构建后必须重新读取，
-  不得复用 preflight 快照。
+- `third_party/xllm_ops` HEAD、tracked diff、untracked 源文件共同形成 source fingerprint；
+  它必须同时匹配 `.xllm_ops_git_head` 和已安装 OPP 的 source identity sidecar。构建后必须
+  重新采集，不能仅凭 HEAD marker 复用缓存，也不得复用 preflight 快照。
 - CPack staging 与实际安装 OPP 中 `op_impl`、`op_proto`、`op_api` 的文件集合及 SHA256；
   缺文件、多文件或内容不同均返回 `FAILED`。
 - 对每个 AscendC 动态算子校验单算子 config、`binary_info_config.json`、kernel JSON 和
   `.o` 的闭包关系；算子未进入聚合索引、索引路径不一致或产物缺失均返回 `FAILED`。
+- 对 CPack staging 中每个可映射到源码目录的动态算子，校验 kernel `.o` 不早于该算子
+  最新源文件；只重新打包旧 `.o`、没有真正重编受影响 kernel 时返回 `FAILED`。
+- 模型依赖的自定义算子可用可重复的 `--required-opp-symbol` 声明；门禁会检查安装后
+  `libcust_opapi.so` 的动态导出符号，缺失任一符号即返回 `FAILED`。
 - xllm_ops 构建和主构建共享同一把主机级 OPP 文件锁，防止不同 worktree 并发覆盖全局 vendor。
 - 每个 `--required-patch` 的 SHA256，以及是否已应用到候选源码。
 - 最终 binary 的路径、SHA256、大小、`file` 和 `ldd -r`。
@@ -89,9 +98,11 @@ cache，也不执行 `xllm_ops` 检查。xLLM 保留原有 CMake、TileLang 和 
 | CMake identity 一致，仅普通源码变化 | `incremental` |
 | TileLang kernel/wrapper 变化且 configure identity 一致 | `tilelang-targeted` |
 | vLLM-Ascend/SGLang kernel 或 extension 变化 | `framework-targeted` |
-| `xllm_ops` HEAD 与 OPP marker 不一致 | 在主构建前追加 `rebuild_and_install_xllm_ops` |
-| 构建后 marker 未刷新或 OPP payload 与 CPack staging 不一致 | `FAILED`，禁止消费 binary |
-| 动态 kernel 已编译但 config 未在最后重新生成，或聚合索引缺失该算子 | `FAILED`，禁止启动服务 |
+| `xllm_ops` HEAD 或源码指纹与已安装 OPP identity 不一致，策略为 `reconfigure` | 只执行官方 full configure；由 `setup.py` 保持 `TileLang → CMake/xllm_ops → xLLM` 顺序，构建后强校验 marker/source identity/payload |
+| `xllm_ops` HEAD 或源码指纹与已安装 OPP identity 不一致，策略为 incremental/targeted | 在窄构建前追加 `rebuild_and_install_xllm_ops` |
+| 构建期间 xllm_ops 源码发生变化 | 记录 `source_changed_during_build`，不单独阻塞 binary；继续校验 marker、source identity、OPP payload 和动态 kernel 闭包 |
+| marker 未刷新、source identity 无法写入或 OPP payload 与 CPack staging 不一致 | `FAILED`，禁止消费 binary |
+| 动态 kernel `.o` 早于对应算子源码、config 未在最后重新生成，或聚合索引缺失该算子 | `FAILED`，禁止启动服务 |
 | submodule 未初始化/冲突、必需 patch 缺失、工具链不可证明 | `BLOCKED` |
 
 ### Fresh worktree / rebase
@@ -99,6 +110,11 @@ cache，也不执行 `xllm_ops` 检查。xLLM 保留原有 CMake、TileLang 和 
 linked worktree 会写入计划理由。若 build tree 不存在、submodule commit 改变或 configure
 identity 不一致，必须选择 `reconfigure`，不能直接复用旧增量产物。heavy rebase 后应把
 目标 base 通过 `--base-ref` 传入，使 configure/third_party 变化进入 fingerprint。
+
+`reconfigure` 时不得为了满足 OPP 身份门禁而把 `--xllm-ops-command` 提前到
+`--configure-command` 之前。xLLM 官方 `setup.py` 是该场景的顺序所有者：先编译
+TileLang，再在 CMake configure 中重建/安装 xllm_ops，最后编译 xLLM。门禁在命令结束后
+记录构建期间的 source drift，并验证 marker、source identity、CPack payload 和动态 kernel 闭包；除 source drift 本身外，其他验证失败仍返回 `FAILED`。
 
 ### TileLang 默认策略
 
@@ -110,11 +126,13 @@ identity 不一致，必须选择 `reconfigure`，不能直接复用旧增量产
   `build.log`。
 - `--no-output-timeout` 默认 `900` 秒；超时会 TERM/KILL 当前构建、记录最后一行
   family/variant 进度并返回 `FAILED`，不得无限等待。
+- 构建命令在继承当前环境的非 login Bash 中执行。CANN、Python 等工具链环境必须在
+  调用 build gate 前加载；不要依赖主机 login profile 在构建期间隐式修改环境。
 
-### 测试并发变量
+### 构建并发变量
 
-执行环境统一设置 `CTEST_PARALLEL`，并记录但忽略 `CTEST_PARALLEL_LEVEL`。同时设置
-`MAX_JOBS` 和 `CMAKE_BUILD_PARALLEL_LEVEL`，实际值写入 `environment.json`。
+执行环境统一设置 `MAX_JOBS` 和 `CMAKE_BUILD_PARALLEL_LEVEL`，实际值写入
+`environment.json`。不要设置或调用 CTest 相关变量和命令。
 
 ### 本机必需 patch
 
@@ -149,6 +167,7 @@ verdict.json
 1. 从用户配置、xLLM 仓库构建文档或已验证脚本取得三类 build command；不自行猜测。
 2. 把本机必需 patch、OPP marker、build dir 和 binary 路径显式传给脚本。
    若 CPack staging 不在 `third_party/xllm_ops` 下，必须通过 `--opp-package-root` 显式传入。
+   `reconfigure` 不需要提供 `--xllm-ops-command`；incremental/targeted 且 marker 不匹配时才需要。
 3. 执行 gate，读取 `verdict.json`，不要只看命令退出文本。
 4. `PASS`：把 `binary-provenance.json` 和 binary 路径交给 eval-runner。
 5. `BLOCKED`：补齐环境或命令后重跑，禁止 benchmark。

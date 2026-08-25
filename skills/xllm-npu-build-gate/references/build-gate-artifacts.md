@@ -11,7 +11,7 @@
 - 可选 NPU gate 的 `npu-smi`、设备节点和相关进程快照。
 - OPP lock 路径、对应 marker parent 和等待时长。
 - 选定的非敏感构建环境和并发变量。
-- `CTEST_PARALLEL_LEVEL` 只作为 ignored provenance，不传给构建命令。
+- 门禁不设置或记录 CTest 环境变量，也不自动运行测试。
 
 ## `build-plan.json`
 
@@ -28,17 +28,18 @@
 - configure 输入文件 SHA256。
 - recursive submodule commits。
 - `git submodule status` 中的 uninitialized、commit mismatch 或 conflict 都是 blocker。
-- xllm_ops 构建前 source/marker identity。
+- xllm_ops 构建前 source HEAD、源码指纹、marker 和已安装 source identity。
 - required patch path、SHA256、applied 状态。
 
 ## `binary-provenance.json`
 
 - source fingerprint 的 branch、commit、dirty diff SHA。
 - CMake、submodule、required patch identity。
-- xllm_ops 构建后重新采集的 source/marker identity，以及 CPack staging 和安装 OPP 的
-  payload 文件数、整体 digest、缺失/多余/哈希不一致文件。
+- xllm_ops 构建后重新采集的 source/marker identity、构建期间源码是否变化、安装 source
+  identity，以及 CPack staging 和安装 OPP 的 payload 文件数、整体 digest、缺失/多余/
+  哈希不一致文件。
 - 安装 OPP 中动态 kernel config 的文件数、无效 JSON、未进入聚合索引的算子、缺失的
-  kernel JSON/`.o` 和索引路径不一致项。
+  kernel JSON/`.o`、索引路径不一致项，以及 CPack kernel 相对算子源码的新鲜度。
 - 实际策略、构建命令和每条命令退出码。
 - 每条命令是否因无输出超时，以及超时前最后一行 family/variant 进度。
 - binary path、SHA256、size、ELF `file` 输出和 `ldd -r` 输出。

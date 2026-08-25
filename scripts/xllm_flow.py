@@ -340,7 +340,11 @@ def package_versions() -> dict[str, str]:
     code, output = capture(["bash", "-lc", "${ASCEND_HOME_PATH:-/usr/local/Ascend/ascend-toolkit/latest}/bin/msprof --version 2>/dev/null | head -1"])
     versions["msprof"] = output if code == 0 else "unavailable"
     for name, candidates in {
-        "cann": ["/usr/local/Ascend/ascend-toolkit/latest/version.cfg", "/usr/local/Ascend/ascend-toolkit/latest/version.info"],
+        "cann": [
+            "/usr/local/Ascend/ascend-toolkit/latest/version.cfg",
+            "/usr/local/Ascend/ascend-toolkit/latest/version.info",
+            "/usr/local/Ascend/ascend-toolkit/latest/opp/version.info",
+        ],
         "driver": ["/usr/local/Ascend/driver/version.info"],
     }.items():
         version_file = next((Path(path) for path in candidates if Path(path).is_file()), None)

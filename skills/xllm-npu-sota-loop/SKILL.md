@@ -32,10 +32,10 @@ Research -> Learn -> Code -> Review -> Validate -> Record
 从统一 schema 创建实验，不手工创建另一套目录：
 
 ```bash
-cp reference/io_specs/experiment.example.yaml experiment.yaml
+cp <repo_root>/reference/io_specs/experiment.example.yaml experiment.yaml
 # 填写真实 repo/commit/binary/model/workload/run_root 后执行
-python scripts/xllm_flow.py preflight --spec experiment.yaml --output "$RUN_ROOT/env"
-python scripts/xllm_flow.py run create --spec experiment.yaml
+python <repo_root>/scripts/xllm_flow.py preflight --spec experiment.yaml --output "$RUN_ROOT/env"
+python <repo_root>/scripts/xllm_flow.py run create --spec experiment.yaml
 ```
 
 `run create` 生成 manifest、CHECKPOINT、attempt hash chain、Big-Rock gate 和 ledger
@@ -66,7 +66,7 @@ Qwen3.5/MTP 相关材料只是可选历史参考。只有当前任务涉及该�
 baseline 完成后立即写入 ledger：
 
 ```bash
-python scripts/xllm_flow.py attempt add --run-root "$RUN_ROOT" --spec experiment.yaml \
+python <repo_root>/scripts/xllm_flow.py attempt add --run-root "$RUN_ROOT" --spec experiment.yaml \
   --attempt-id baseline-r0 --phase benchmark --status pass --hypothesis baseline \
   --metrics-json "$RUN_ROOT/reports/baseline-metrics.json" \
   --artifact reports/baseline-metrics.json --repeat-index 0
@@ -139,7 +139,7 @@ profiling 是诊断证据，不能替代正式的非 profiling 前后性能对�
 进入 `implementation/code/patch` checkpoint 前必须运行：
 
 ```bash
-python scripts/xllm_flow.py gate check --run-root "$RUN_ROOT"
+python <repo_root>/scripts/xllm_flow.py gate check --run-root "$RUN_ROOT"
 ```
 
 必须生成：
@@ -268,8 +268,8 @@ $RUN_ROOT/humanize/lineage.jsonl
 `big-rock-gate.json`、至少一个通过的 benchmark attempt，并完成 retention review：
 
 ```bash
-python scripts/xllm_flow.py run validate --run-root "$RUN_ROOT" --status pass
-python scripts/xllm_flow.py run finalize --run-root "$RUN_ROOT" --status pass \
+python <repo_root>/scripts/xllm_flow.py run validate --run-root "$RUN_ROOT" --status pass
+python <repo_root>/scripts/xllm_flow.py run finalize --run-root "$RUN_ROOT" --status pass \
   --reviewed-by "$USER" --retention-decision keep
 ```
 

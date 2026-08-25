@@ -41,6 +41,16 @@ def test_skills_do_not_hardcode_single_agent_install_paths():
             assert item not in text, f"{item} found in {skill}"
 
 
+def test_skill_commands_do_not_depend_on_repository_cwd():
+    ambiguous_command = re.compile(
+        r"^\s*(?:(?:python3?|bash|cp) (?:scripts|skills|reference)/|scripts/)",
+        re.M,
+    )
+    for skill in ROOT.glob("skills/*/SKILL.md"):
+        text = skill.read_text(encoding="utf-8")
+        assert not ambiguous_command.search(text), skill
+
+
 def test_no_public_readme_forbidden_source_reference():
     forbidden = [
         "B" + "Buf",

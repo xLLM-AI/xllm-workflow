@@ -79,7 +79,7 @@ description: 昇腾 NPU 推理 benchmark 政策与结论入口。用于审查已
 使用采集器生成规范化 snapshot，同时保留原始命令输出：
 
 ```bash
-python skills/xllm-npu-benchmark/scripts/capture_fairness_snapshot.py \
+python <skill_dir>/scripts/capture_fairness_snapshot.py \
   --backend ascend-npu \
   --output "$RUN_ROOT/env/<phase>.json" \
   --raw-dir "$RUN_ROOT/env/raw/<phase>" \
@@ -131,14 +131,14 @@ manifest。采集失败或字段无法解析时保留 raw artifact，并停止�
 比较前先对每个候选 run 执行：
 
 ```bash
-python scripts/validate_run_evidence.py --run-root <candidate_run_root>
+python <repo_root>/scripts/validate_run_evidence.py --run-root <candidate_run_root>
 ```
 
 任一候选不是 `PASS` 时，不进入百分比比较；保留 `INCONCLUSIVE/BLOCKED` 原因。
 随后为候选集合生成 `fairness.json` 并执行：
 
 ```bash
-python skills/xllm-npu-benchmark/scripts/benchmark_fairness_gate.py \
+python <skill_dir>/scripts/benchmark_fairness_gate.py \
   --comparison-root <comparison_root>
 ```
 
@@ -147,14 +147,16 @@ python skills/xllm-npu-benchmark/scripts/benchmark_fairness_gate.py \
 
 脚本入口：
 
-- [`scripts/collect_evalscope_results.py`](scripts/collect_evalscope_results.py)：递归收集 evalscope `benchmark_summary.json` / `benchmark_percentile.json`，归一化为 JSONL。
-- [`scripts/compare_npu_benchmark.py`](scripts/compare_npu_benchmark.py)：比较 xLLM 和 vLLM-Ascend 候选，输出 Markdown/CSV/JSONL。
-- [`scripts/validate_framework_cli.py`](scripts/validate_framework_cli.py)：检查框架 CLI 和关键参数是否可用。
+- [`../../scripts/collect_evalscope_results.py`](../../scripts/collect_evalscope_results.py)：
+  递归收集 evalscope `benchmark_summary.json` / `benchmark_percentile.json`，归一化为 JSONL。
+- [`../../scripts/compare_npu_benchmark.py`](../../scripts/compare_npu_benchmark.py)：
+  比较 xLLM 和 vLLM-Ascend 候选，输出 Markdown/CSV/JSONL。
+- [`../../scripts/validate_framework_cli.py`](../../scripts/validate_framework_cli.py)：检查框架 CLI 和关键参数是否可用。
 
 典型命令：
 
 ```bash
-python scripts/collect_evalscope_results.py \
+python <repo_root>/scripts/collect_evalscope_results.py \
   --root /path/to/xllm/evalscope/results \
   --framework xllm \
   --output-jsonl /path/to/xllm_results.jsonl \
@@ -162,12 +164,12 @@ python scripts/collect_evalscope_results.py \
   --sla-ttft-ms 500 \
   --sla-tpot-ms 50
 
-python scripts/collect_evalscope_results.py \
+python <repo_root>/scripts/collect_evalscope_results.py \
   --root /path/to/vllm/evalscope/results \
   --framework vllm-ascend \
   --output-jsonl /path/to/vllm_results.jsonl
 
-python scripts/compare_npu_benchmark.py \
+python <repo_root>/scripts/compare_npu_benchmark.py \
   --xllm-results /path/to/xllm_results.jsonl \
   --vllm-results /path/to/vllm_results.jsonl \
   --output-dir /path/to/comparison/

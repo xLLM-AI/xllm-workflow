@@ -256,8 +256,8 @@ git status --short
 git branch --show-current
 git log -1 --oneline
 
-# 编译和 UT 必须用一次完整命令跑完
-python setup.py build test --device npu
+# 默认提交门禁只做构建；不要自动追加 test
+MAX_JOBS=16 python setup.py build --device npu
 
 # push 后确认 fork 分支和 PR head 已指向预期 commit
 git ls-remote <fork-remote> refs/heads/<pr-branch>
@@ -271,6 +271,9 @@ git show refs/tmp/pr-<pr-id>:xllm/core/framework/config/scheduler_config.cpp | g
 若存在多个 worktree，先清理临时 CI/实验 worktree，或明确哪一个是“权威 PR
 worktree”。不要从过期 worktree 直接 push，也不要把本地旧 commit 当作远端 PR
 当前状态。
+
+测试不属于默认构建门禁。只有用户明确要求测试时才单独执行，并把测试范围、命令和结果
+与构建 verdict 分开报告。
 
 ### 复盘结论
 
