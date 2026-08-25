@@ -59,8 +59,6 @@ SAFE_ENV_KEYS = (
     "ASCEND_OPP_PATH",
     "ASCEND_CUSTOM_OPP_PATH",
     "CMAKE_BUILD_PARALLEL_LEVEL",
-    "CTEST_PARALLEL",
-    "CTEST_PARALLEL_LEVEL",
     "LD_LIBRARY_PATH",
     "LIBTORCH_ROOT",
     "MAX_JOBS",
@@ -321,6 +319,25 @@ def untracked_fingerprints(repo: Path) -> dict[str, str]:
     return fingerprints
 
 
+def git_source_fingerprint(repo: Path) -> str | None:
+    """Fingerprint committed plus local source without hashing ignored build output."""
+    head = git(repo, "rev-parse", "HEAD", check=False)
+    if head.returncode != 0:
+        return None
+    diff = git(repo, "diff", "--binary", "HEAD", check=False).stdout.encode()
+    untracked = {
+        path: digest
+        for path, digest in untracked_fingerprints(repo).items()
+        if not path.startswith(("build/", "xllm_ops/build/", "third_party/"))
+    }
+    material = {
+        "head": head.stdout.strip(),
+        "diff_sha256": sha256_bytes(diff),
+        "untracked": untracked,
+    }
+    return sha256_bytes(json.dumps(material, sort_keys=True).encode())
+
+
 def find_opp_marker(repo: Path, requested: Path | None) -> Path | None:
     candidates: list[Path] = []
     if requested:
@@ -516,6 +533,60 @@ def validate_dynamic_kernel_configs(vendor_root: Path) -> tuple[dict[str, Any], 
     return details, failures
 
 
+def validate_dynamic_kernel_freshness(
+    repo: Path, package_root: Path | None
+) -> tuple[dict[str, Any], list[str]]:
+    """Reject CPack kernels older than source files in the matching operator tree."""
+    source_root = repo / "third_party/xllm_ops/xllm_ops"
+    if package_root is None or not source_root.is_dir():
+        return {
+            "applicable": False,
+            "matches": True,
+            "reason": "package_or_source_root_missing",
+        }, []
+
+    kernel_root = package_root / "op_impl/ai_core/tbe/kernel"
+    stale: list[dict[str, Any]] = []
+    checked = 0
+    for op_dir in sorted(path for path in kernel_root.glob("*/*") if path.is_dir()):
+        objects = sorted(op_dir.glob("*.o"))
+        if not objects:
+            continue
+        source_dirs = [
+            path
+            for path in source_root.rglob(op_dir.name)
+            if path.is_dir() and "build" not in path.parts
+        ]
+        source_files = [
+            path
+            for source_dir in source_dirs
+            for path in source_dir.rglob("*")
+            if path.is_file() and "build" not in path.parts
+        ]
+        if not source_files:
+            continue
+        checked += 1
+        newest_source = max(source_files, key=lambda path: path.stat().st_mtime_ns)
+        oldest_object = min(objects, key=lambda path: path.stat().st_mtime_ns)
+        if oldest_object.stat().st_mtime_ns < newest_source.stat().st_mtime_ns:
+            stale.append(
+                {
+                    "op": op_dir.name,
+                    "newest_source": str(newest_source.relative_to(repo)),
+                    "newest_source_mtime_ns": newest_source.stat().st_mtime_ns,
+                    "oldest_object": str(oldest_object.relative_to(package_root)),
+                    "oldest_object_mtime_ns": oldest_object.stat().st_mtime_ns,
+                }
+            )
+    details = {
+        "applicable": True,
+        "checked_op_count": checked,
+        "stale": stale,
+        "matches": not stale,
+    }
+    return details, ([] if not stale else ["xllm_ops_dynamic_kernel_stale"])
+
+
 def find_opp_package_vendor(
     repo: Path, marker: Path, requested: Path | None
 ) -> Path | None:
@@ -536,7 +607,10 @@ def find_opp_package_vendor(
 
 
 def validate_opp_payload(
-    repo: Path, marker: Path, requested_package_root: Path | None
+    repo: Path,
+    marker: Path,
+    requested_package_root: Path | None,
+    required_symbols: list[str] | None = None,
 ) -> tuple[dict[str, Any], list[str]]:
     installed_root = marker.parent
     package_root = find_opp_package_vendor(repo, marker, requested_package_root)
@@ -558,6 +632,39 @@ def validate_opp_payload(
         failures.append("xllm_ops_payload_mismatch")
     dynamic_kernel_config, config_failures = validate_dynamic_kernel_configs(installed_root)
     failures.extend(config_failures)
+    dynamic_kernel_freshness, freshness_failures = validate_dynamic_kernel_freshness(
+        repo, package_root
+    )
+    failures.extend(freshness_failures)
+    symbol_library = next(
+        iter(sorted(installed_root.glob("op_api/lib/libcust_opapi.so"))), None
+    )
+    required_symbols = required_symbols or []
+    symbol_probe: dict[str, Any] = {
+        "library": str(symbol_library) if symbol_library else None,
+        "required": sorted(set(required_symbols)),
+        "missing": [],
+    }
+    if required_symbols:
+        if symbol_library is None:
+            symbol_probe["missing"] = sorted(set(required_symbols))
+            failures.append("xllm_ops_symbol_library_missing")
+        else:
+            probe = command_output(["nm", "-D", "--defined-only", str(symbol_library)])
+            symbol_probe["probe"] = probe
+            if probe["returncode"] != 0:
+                failures.append("xllm_ops_symbol_probe_failed")
+            else:
+                exported_symbols = {
+                    line.split()[-1] for line in probe["stdout"].splitlines() if line.split()
+                }
+                symbol_probe["missing"] = sorted(set(required_symbols) - exported_symbols)
+                if symbol_probe["missing"]:
+                    failures.append("xllm_ops_required_symbol_missing")
+    symbol_probe["matches"] = not symbol_probe["missing"] and not any(
+        failure in failures
+        for failure in ("xllm_ops_symbol_library_missing", "xllm_ops_symbol_probe_failed")
+    )
     return {
         "installed_root": str(installed_root),
         "package_root": str(package_root) if package_root else None,
@@ -569,6 +676,8 @@ def validate_opp_payload(
         "unexpected": unexpected,
         "mismatched": mismatched,
         "dynamic_kernel_config": dynamic_kernel_config,
+        "dynamic_kernel_freshness": dynamic_kernel_freshness,
+        "required_symbols": symbol_probe,
         "matches": bool(
             expected
             and installed
@@ -576,6 +685,8 @@ def validate_opp_payload(
             and not unexpected
             and not mismatched
             and dynamic_kernel_config["matches"]
+            and dynamic_kernel_freshness["matches"]
+            and symbol_probe["matches"]
         ),
     }, failures
 
@@ -587,14 +698,63 @@ def xllm_ops_identity(repo: Path, marker_path: Path | None) -> dict[str, Any]:
         source_head = git(source, "rev-parse", "HEAD").stdout.strip()
     marker = find_opp_marker(repo, marker_path)
     marker_head = marker.read_text(encoding="utf-8").strip() if marker else None
+    source_fingerprint = git_source_fingerprint(source) if source.is_dir() else None
+    identity_path = (
+        marker.with_name(".xllm_ops_source_identity.json") if marker else None
+    )
+    installed_source_fingerprint = None
+    identity_error = None
+    if identity_path and identity_path.is_file():
+        try:
+            installed_identity = json.loads(identity_path.read_text(encoding="utf-8"))
+            installed_source_fingerprint = installed_identity.get("source_fingerprint")
+        except (OSError, json.JSONDecodeError, AttributeError) as exc:
+            identity_error = str(exc)
+    head_matches = bool(source_head and marker_head and source_head == marker_head)
+    source_matches = bool(
+        source_fingerprint
+        and installed_source_fingerprint
+        and source_fingerprint == installed_source_fingerprint
+    )
     return {
         "source_path": str(source),
         "source_head": source_head,
+        "source_fingerprint": source_fingerprint,
         "marker_path": str(marker) if marker else None,
         "marker_head": marker_head,
-        "matches": bool(source_head and marker_head and source_head == marker_head),
-        "rebuild_required": bool(source_head and source_head != marker_head),
+        "identity_path": str(identity_path) if identity_path else None,
+        "installed_source_fingerprint": installed_source_fingerprint,
+        "identity_error": identity_error,
+        "head_matches": head_matches,
+        "source_matches": source_matches,
+        "matches": head_matches and source_matches,
+        "rebuild_required": bool(source_head and not (head_matches and source_matches)),
     }
+
+
+def write_xllm_ops_source_identity(identity: dict[str, Any]) -> None:
+    path_value = identity.get("identity_path")
+    fingerprint = identity.get("source_fingerprint")
+    if not path_value or not fingerprint:
+        raise GateError("xllm_ops_source_identity_unavailable")
+    path = Path(path_value)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "generated_at": utc_now(),
+                "source_head": identity.get("source_head"),
+                "source_fingerprint": fingerprint,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    temporary.replace(path)
 
 
 def required_patch_identity(repo: Path, patch_paths: list[Path]) -> tuple[list[dict[str, Any]], list[str]]:
@@ -766,7 +926,13 @@ def parse_build_env(values: list[str]) -> dict[str, str]:
 
 def selected_commands(args: argparse.Namespace, strategy: str, ops_rebuild: bool) -> list[str]:
     commands: list[str] = []
-    if ops_rebuild:
+    # A full xLLM configure is the source-of-truth build orchestrator. Its
+    # setup.py flow compiles TileLang before CMake rebuilds xllm_ops. Running a
+    # separate xllm_ops command first reverses that order and can produce a
+    # binary from a build sequence that users did not request. Only targeted or
+    # incremental builds need an explicit dependency rebuild before their
+    # narrower command.
+    if ops_rebuild and strategy != "reconfigure":
         if not args.xllm_ops_command:
             return []
         commands.append(args.xllm_ops_command)
@@ -903,6 +1069,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--opp-package-root", type=Path)
     parser.add_argument("--opp-lock-path", type=Path)
     parser.add_argument("--opp-lock-timeout", type=int, default=1800)
+    parser.add_argument(
+        "--required-opp-symbol",
+        action="append",
+        default=[],
+        help="exported symbol that must exist in the installed xllm_ops runtime library",
+    )
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--configure-command")
     parser.add_argument("--incremental-command")
@@ -976,8 +1148,11 @@ def main(argv: list[str] | None = None) -> int:
             adapter=adapter,
         )
         if ops["rebuild_required"]:
-            actions.insert(0, "rebuild_and_install_xllm_ops")
-            reasons.append("xllm_ops_head_does_not_match_opp_marker")
+            reasons.append("xllm_ops_source_identity_does_not_match_installed_opp")
+            if strategy == "reconfigure":
+                actions.append("verify_configure_managed_xllm_ops_rebuild")
+            else:
+                actions.insert(0, "rebuild_and_install_xllm_ops")
 
         if args.jobs < 1 or args.tilelang_worker_cap < 1 or args.no_output_timeout < 1:
             raise GateError(
@@ -993,15 +1168,16 @@ def main(argv: list[str] | None = None) -> int:
         build_env.update(requested_build_env)
         build_env["MAX_JOBS"] = str(effective_jobs)
         build_env["CMAKE_BUILD_PARALLEL_LEVEL"] = str(effective_jobs)
-        build_env["CTEST_PARALLEL"] = str(effective_jobs)
+        build_env.pop("CTEST_PARALLEL", None)
         build_env.pop("CTEST_PARALLEL_LEVEL", None)
         build_env["BUILD_GATE_START_METHOD"] = args.tilelang_start_method
         build_env["BUILD_GATE_TILELANG_WORKERS"] = str(args.tilelang_worker_cap)
         commands = selected_commands(args, strategy, ops["rebuild_required"])
-        required_command_count = 1 + int(ops["rebuild_required"])
+        explicit_ops_rebuild = ops["rebuild_required"] and strategy != "reconfigure"
+        required_command_count = 1 + int(explicit_ops_rebuild)
         if args.execute and len(commands) != required_command_count:
             blockers.append(f"build_command_missing_for_strategy:{strategy}")
-            if ops["rebuild_required"] and not args.xllm_ops_command:
+            if explicit_ops_rebuild and not args.xllm_ops_command:
                 blockers.append("xllm_ops_rebuild_command_missing")
 
         head = git(repo, "rev-parse", "HEAD").stdout.strip()
@@ -1048,8 +1224,6 @@ def main(argv: list[str] | None = None) -> int:
             "normalized_build_environment": {
                 "MAX_JOBS": build_env["MAX_JOBS"],
                 "CMAKE_BUILD_PARALLEL_LEVEL": build_env["CMAKE_BUILD_PARALLEL_LEVEL"],
-                "CTEST_PARALLEL": build_env["CTEST_PARALLEL"],
-                "CTEST_PARALLEL_LEVEL_ignored": os.environ.get("CTEST_PARALLEL_LEVEL"),
                 "BUILD_GATE_START_METHOD": build_env["BUILD_GATE_START_METHOD"],
                 "BUILD_GATE_TILELANG_WORKERS": build_env["BUILD_GATE_TILELANG_WORKERS"],
             },
@@ -1111,18 +1285,43 @@ def main(argv: list[str] | None = None) -> int:
         binary, binary_failures = binary_provenance(args.binary)
         if args.execute and build_returncode == 0:
             if adapter["special_dependency"] == "xllm_ops" and ops.get("source_head"):
+                pre_ops = ops
                 post_ops = xllm_ops_identity(repo, args.opp_marker)
                 post_ops["applicable"] = True
                 marker_path = post_ops.get("marker_path")
-                if not post_ops["matches"]:
+                source_changed = (
+                    post_ops.get("source_fingerprint")
+                    != pre_ops.get("source_fingerprint")
+                )
+                post_ops["source_changed_during_build"] = source_changed
+                # Some upstream xllm_ops build scripts intentionally rewrite
+                # source-tree compatibility headers while producing the OPP
+                # package. Keep this drift visible in provenance, but do not
+                # reject an otherwise valid binary solely for that reason.
+                post_ops["source_change_gate"] = "disabled"
+                if not post_ops["head_matches"]:
                     binary_failures.append("xllm_ops_post_build_marker_mismatch")
                     post_ops["payload"] = {"matches": False, "reason": "marker_mismatch"}
                 elif marker_path:
                     payload, payload_failures = validate_opp_payload(
-                        repo, Path(marker_path), args.opp_package_root
+                        repo,
+                        Path(marker_path),
+                        args.opp_package_root,
+                        args.required_opp_symbol,
                     )
                     post_ops["payload"] = payload
                     binary_failures.extend(payload_failures)
+                    if not payload_failures:
+                        try:
+                            write_xllm_ops_source_identity(post_ops)
+                            post_ops = xllm_ops_identity(repo, args.opp_marker)
+                            post_ops["applicable"] = True
+                            post_ops["source_changed_during_build"] = source_changed
+                            post_ops["source_change_gate"] = "disabled"
+                            post_ops["payload"] = payload
+                        except (OSError, GateError) as exc:
+                            post_ops["source_identity_write_error"] = str(exc)
+                            binary_failures.append("xllm_ops_source_identity_write_failed")
                 ops = post_ops
             failures.extend(binary_failures)
             status = "PASS" if not binary_failures else "FAILED"

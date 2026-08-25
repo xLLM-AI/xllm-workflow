@@ -145,3 +145,7 @@ def test_cleanup_snapshot_must_match_launched_devices(tmp_path, monkeypatch):
 
     assert lifecycle.command_cleanup(args) == 1
     assert read(attempt / "cleanup.json")["npu_quiescence"] == "FAILED"
+
+    args.expected_physical_devices = [99]
+    assert lifecycle.command_cleanup(args) == 0
+    assert read(attempt / "cleanup.json")["npu_quiescence"] == "PASS"

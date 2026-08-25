@@ -187,7 +187,10 @@ def command_cleanup(args: argparse.Namespace) -> int:
             devices = npu_snapshot.get("devices") if isinstance(npu_snapshot, dict) else None
             collection_errors = npu_snapshot.get("collection_errors") if isinstance(npu_snapshot, dict) else None
             launch = read_json(args.attempt_dir / "launch.json")
-            expected_devices = launch.get("visible_devices") if isinstance(launch, dict) else None
+            expected_physical_devices = getattr(args, "expected_physical_devices", [])
+            expected_devices = expected_physical_devices or (
+                launch.get("visible_devices") if isinstance(launch, dict) else None
+            )
             observed_devices = [device.get("physical_id") for device in devices] if isinstance(devices, list) else None
             matching_devices = isinstance(expected_devices, list) and observed_devices == expected_devices
             clean_devices = isinstance(devices, list) and bool(devices) and all(
@@ -253,6 +256,13 @@ def parser() -> argparse.ArgumentParser:
     cleanup.add_argument("--host", default="127.0.0.1")
     cleanup.add_argument("--port", dest="ports", type=int, action="append", default=[])
     cleanup.add_argument("--npu-snapshot", type=Path)
+    cleanup.add_argument(
+        "--expected-physical-device",
+        dest="expected_physical_devices",
+        type=int,
+        action="append",
+        default=[],
+    )
     cleanup.set_defaults(func=command_cleanup)
     return root
 

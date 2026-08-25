@@ -98,6 +98,13 @@ ENABLE_CHUNKED_PREFILL="${ENABLE_CHUNKED_PREFILL:-true}"
 ENABLE_SCHEDULE_OVERLAP="${ENABLE_SCHEDULE_OVERLAP:-true}"
 ENABLE_GRAPH="${ENABLE_GRAPH:-true}"
 ENABLE_SHM="${ENABLE_SHM:-true}"
+ENABLE_MTP_DRAFT_BODY_TP1="${ENABLE_MTP_DRAFT_BODY_TP1:-}"
+ENABLE_OPT_VALIDATE_PROBS="${ENABLE_OPT_VALIDATE_PROBS:-}"
+ENABLE_GRAPH_DOUBLE_BUFFER="${ENABLE_GRAPH_DOUBLE_BUFFER:-}"
+ENABLE_GRAPH_MODE_DECODE_NO_PADDING="${ENABLE_GRAPH_MODE_DECODE_NO_PADDING:-}"
+RANDOM_SEED="${RANDOM_SEED:-}"
+MAX_LINEAR_STATE_CACHE_SLOTS="${MAX_LINEAR_STATE_CACHE_SLOTS:-}"
+ENABLE_FUSED_MC2="${ENABLE_FUSED_MC2:-}"
 
 RUN_ROOT="${RUN_ROOT:-}"
 LEGACY_LAYOUT=false
@@ -149,12 +156,10 @@ trap cleanup_partial_launch ERR INT TERM
 
 for ((i = 0; i < NNODES; i++)); do
   port=$((START_PORT + i))
-  logical_device=$i
   log_file="$LOG_DIR/node_$i.log"
   cmd=(
     "$XLLM_BIN"
     --model "$MODEL_PATH"
-    "--devices=npu:$logical_device"
     --port "$port"
     "--master_node_addr=$MASTER_NODE_ADDR"
     "--nnodes=$NNODES"
@@ -176,16 +181,22 @@ for ((i = 0; i < NNODES; i++)); do
   if [ -n "$DRAFT_MODEL_PATH" ] && [ "$NUM_SPECULATIVE_TOKENS" -gt 0 ]; then
     cmd+=(
       --draft_model "$DRAFT_MODEL_PATH"
-      "--draft_devices=npu:$logical_device"
       --num_speculative_tokens "$NUM_SPECULATIVE_TOKENS"
     )
   fi
+  [ -z "$ENABLE_MTP_DRAFT_BODY_TP1" ] || cmd+=("--enable_mtp_draft_body_tp1=$ENABLE_MTP_DRAFT_BODY_TP1")
+  [ -z "$ENABLE_OPT_VALIDATE_PROBS" ] || cmd+=("--enable_opt_validate_probs=$ENABLE_OPT_VALIDATE_PROBS")
+  [ -z "$ENABLE_GRAPH_DOUBLE_BUFFER" ] || cmd+=("--enable_graph_double_buffer=$ENABLE_GRAPH_DOUBLE_BUFFER")
+  [ -z "$ENABLE_GRAPH_MODE_DECODE_NO_PADDING" ] || cmd+=("--enable_graph_mode_decode_no_padding=$ENABLE_GRAPH_MODE_DECODE_NO_PADDING")
+  [ -z "$RANDOM_SEED" ] || cmd+=("--random_seed=$RANDOM_SEED")
+  [ -z "$MAX_LINEAR_STATE_CACHE_SLOTS" ] || cmd+=("--max_linear_state_cache_slots=$MAX_LINEAR_STATE_CACHE_SLOTS")
+  [ -z "$ENABLE_FUSED_MC2" ] || cmd+=("--enable_fused_mc2=$ENABLE_FUSED_MC2")
 
-  printf 'ASCEND_RT_VISIBLE_DEVICES=%q nohup ' "$ASCEND_RT_VISIBLE_DEVICES" >> "$COMMAND_FILE"
+  printf 'ASCEND_RT_VISIBLE_DEVICES=%q setsid nohup ' "$ASCEND_RT_VISIBLE_DEVICES" >> "$COMMAND_FILE"
   printf '%q ' "${cmd[@]}" >> "$COMMAND_FILE"
   printf '>> %q 2>&1 &\n' "$log_file" >> "$COMMAND_FILE"
 
-  nohup "${cmd[@]}" >> "$log_file" 2>&1 &
+  setsid nohup "${cmd[@]}" >> "$log_file" 2>&1 &
   pid=$!
   started_pids+=("$pid")
   if ! start_time="$(read_start_time "$pid")"; then

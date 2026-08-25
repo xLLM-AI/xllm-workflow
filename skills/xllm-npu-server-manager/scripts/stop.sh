@@ -104,7 +104,9 @@ if [ -n "$ATTEMPT_DIR" ] && [ -f "$ATTEMPT_DIR/launch.json" ]; then
   mapfile -t PORTS < <(python3 -c 'import json,sys; [print(x) for x in json.load(open(sys.argv[1])).get("ports", [])]' "$ATTEMPT_DIR/launch.json")
   if [ -n "${NPU_PHYSICAL_DEVICES:-}" ] && [ -z "${NPU_QUIESCENCE_SNAPSHOT:-}" ]; then
     NPU_QUIESCENCE_SNAPSHOT="$ATTEMPT_DIR/npu-after.json"
-    snapshot=(python3 "$PROJECT_ROOT/skills/xllm-npu-benchmark/scripts/capture_fairness_snapshot.py" --output "$NPU_QUIESCENCE_SNAPSHOT" --raw-dir "$ATTEMPT_DIR/npu-after-raw")
+    # Host-level physical-device checks must not inherit the service's logical
+    # visibility remapping; otherwise physical card 7 can be queried as NPU 3.
+    snapshot=(env -u ASCEND_RT_VISIBLE_DEVICES -u ASCEND_VISIBLE_DEVICES -u NPU_VISIBLE_DEVICES python3 "$PROJECT_ROOT/skills/xllm-npu-benchmark/scripts/capture_fairness_snapshot.py" --output "$NPU_QUIESCENCE_SNAPSHOT" --raw-dir "$ATTEMPT_DIR/npu-after-raw")
     IFS=',' read -ra physical_devices <<< "$NPU_PHYSICAL_DEVICES"
     for device in "${physical_devices[@]}"; do snapshot+=(--physical-device "$device"); done
     if ! "${snapshot[@]}"; then
@@ -113,6 +115,10 @@ if [ -n "$ATTEMPT_DIR" ] && [ -f "$ATTEMPT_DIR/launch.json" ]; then
   fi
   cleanup=(python3 "$SCRIPT_DIR/service_lifecycle.py" cleanup --attempt-dir "$ATTEMPT_DIR" --attempt-id "$ATTEMPT_ID" --pid-file "$PID_FILE")
   if [ -n "${NPU_QUIESCENCE_SNAPSHOT:-}" ]; then cleanup+=(--npu-snapshot "$NPU_QUIESCENCE_SNAPSHOT"); fi
+  if [ -n "${NPU_PHYSICAL_DEVICES:-}" ]; then
+    IFS=',' read -ra expected_physical_devices <<< "$NPU_PHYSICAL_DEVICES"
+    for device in "${expected_physical_devices[@]}"; do cleanup+=(--expected-physical-device "$device"); done
+  fi
   for port in "${PORTS[@]}"; do cleanup+=(--port "$port"); done
   "${cleanup[@]}"
 else

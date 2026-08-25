@@ -16,7 +16,7 @@ from io import StringIO
 from typing import Any
 
 
-PARSER_VERSION = 2
+PARSER_VERSION = 3
 BACKENDS = ("ascend-npu", "nvidia-gpu")
 
 
@@ -96,6 +96,41 @@ def parse_processes(text: str) -> dict[int, list[dict[str, Any]]]:
             records[int(chip.group(1))] = current
             current = []
     return records
+
+
+def parse_container_pid_mapping(text: str) -> dict[tuple[int, int, int], int]:
+    """Map (NPU id, chip id, device-side pid) to the current namespace pid."""
+    mapping: dict[tuple[int, int, int], int] = {}
+    for line in text.splitlines():
+        columns = [column.strip() for column in line.strip().strip("|").split("|")]
+        if len(columns) != 5:
+            continue
+        device = columns[0].split()
+        if len(device) != 2 or not all(value.isdigit() for value in device):
+            continue
+        if not columns[1].isdigit() or not columns[4].isdigit():
+            continue
+        npu_id, chip_id = map(int, device)
+        mapping[(npu_id, chip_id, int(columns[1]))] = int(columns[4])
+    return mapping
+
+
+def apply_container_pid_mapping(
+    processes: list[dict[str, Any]],
+    npu_id: int,
+    chip_id: int,
+    mapping: dict[tuple[int, int, int], int],
+) -> list[dict[str, Any]]:
+    normalized = []
+    for process in processes:
+        record = dict(process)
+        device_pid = record["pid"]
+        container_pid = mapping.get((npu_id, chip_id, device_pid))
+        if container_pid is not None:
+            record["device_pid"] = device_pid
+            record["pid"] = container_pid
+        normalized.append(record)
+    return normalized
 
 
 def proc_start_time(pid: int) -> str | None:
@@ -188,6 +223,9 @@ def capture_ascend(source: Source, requested: list[int], identities: dict[int, s
     errors: list[str] = []
     devices: list[dict[str, Any]] = []
     mapping = parse_mapping(source.read("mapping.txt", ["npu-smi", "info", "-m"]))
+    container_pid_mapping = parse_container_pid_mapping(
+        source.read_optional("summary.txt", ["npu-smi", "info"])
+    )
     grouped = sorted({mapping[device][0] for device in requested if device in mapping})
     usage_fields = {
         "HBM Usage Rate(%)": "hbm_usage_pct",
@@ -240,7 +278,15 @@ def capture_ascend(source: Source, requested: list[int], identities: dict[int, s
             "health": health.get("health"),
             "hbm_usage_pct": usage.get("hbm_usage_pct"),
             "aicore_usage_pct": usage.get("aicore_usage_pct"),
-            "processes": annotate_processes(process_by_npu.get(npu_id, {}).get(chip_id, []), identities),
+            "processes": annotate_processes(
+                apply_container_pid_mapping(
+                    process_by_npu.get(npu_id, {}).get(chip_id, []),
+                    npu_id,
+                    chip_id,
+                    container_pid_mapping,
+                ),
+                identities,
+            ),
         })
     return devices, errors
 
