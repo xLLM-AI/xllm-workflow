@@ -1,4 +1,4 @@
-# <plan_id> — <title>
+# plan-<id> — <title>
 
 ## 假设
 

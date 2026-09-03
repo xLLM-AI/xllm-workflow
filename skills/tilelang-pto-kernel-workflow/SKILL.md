@@ -35,7 +35,8 @@ validation:
   - 依次检查编译/source、Golden/state、资源、msprof A/B、跨 Shape、路由
   - 精度失败立即停止性能比较并进入 Decide
   - 每轮 validate_run.py 通过；最终再以 --final 校验
-  - 所有 Plan 已裁决，最终代码已复采，生产路径与 rollback 已实测
+  - 至少一个 Plan 已裁决；final-evidence.json 对 A/B、精度、路由和 rollback artifact 做 SHA-256 绑定
+  - 最终代码已复采，Dashboard 验收项全部关闭，生产路径与 rollback 已实测
 ```
 
 ## 按需读取

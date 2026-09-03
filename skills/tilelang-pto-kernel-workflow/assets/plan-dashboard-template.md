@@ -13,7 +13,7 @@
 ## Loop 控制
 
 - 当前 Plan：
-- 当前 step：SELECT / IMPLEMENT / VERIFY / REVIEW / DECIDE / CLOSED
+- 当前 step：SELECT
 - 本轮唯一主要变量：
 - 最后 Gate 与 verdict：
 - 下一动作：
@@ -27,6 +27,8 @@
 - 仲裁首推：
 
 ## Plans
+
+> `plan_id` 必须使用 `plan-<id>`，对应文件必须是 `plans/plan-<id>.md`；表中每个数据行都会被校验。
 
 | plan_id | 层次 | 来源 | 唯一主要改动 | 互斥组 | 可叠加 | 状态 | round | 证据摘要 | 决策原因 | 文件 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

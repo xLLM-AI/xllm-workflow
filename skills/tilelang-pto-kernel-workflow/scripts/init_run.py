@@ -19,6 +19,7 @@ TEMPLATES = {
     "plan-dashboard-template.md": "plan-dashboard.md",
     "progress-template.md": "progress.md",
     "final-report-template.md": "final-report.md",
+    "final-evidence-template.json": "final-evidence.json",
     "backfill-template.md": "backfill-draft.md",
     "plan-template.md": "plans/_template.md",
 }
@@ -31,7 +32,9 @@ DIRECTORIES = (
     "precision/golden",
     "precision/atk",
     "perf/round0",
+    "perf/final",
     "model/graph-route",
+    "model/rollback",
     "model/tpot",
 )
 

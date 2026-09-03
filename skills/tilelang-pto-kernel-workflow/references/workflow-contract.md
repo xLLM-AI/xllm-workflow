@@ -7,6 +7,7 @@
 3. 阶段合同
 4. Profile 诊断输入
 5. 最终验收
+6. 最终 Evidence 合同
 
 ## 1. 角色与状态所有权
 
@@ -43,11 +44,14 @@ $RUN_ROOT/analysis/tilelang-pto/<op>/
 │   └── atk/
 ├── perf/
 │   ├── round0/
-│   └── roundN/
+│   ├── roundN/
+│   └── final/
 ├── model/
 │   ├── graph-route/
+│   ├── rollback/
 │   └── tpot/
 ├── final-report.md
+├── final-evidence.json
 └── backfill-draft.md
 ```
 
@@ -101,6 +105,8 @@ round0 与复采轮至少固定：
 
 进入最终验收前确认：
 
+- `plan-dashboard.md` 至少有一个 `plan-<id>` 数据行，所有 Plan 已裁决，最终验收项全部勾选且 step 为 `CLOSED`。
+- `final-evidence.json` 的 `performance_ab`、`precision`、`route`、`rollback` 均为 `pass`，并用 SHA-256 绑定对应目录下非空 JSON artifact。
 - 没有 `待实现` Plan，或所有未做项都明确转为淘汰并写原因。
 - 最终代码已复采，配置与 round0 一致。
 - 每个通过 Plan 都存在于最终代码路径。
@@ -117,3 +123,15 @@ round0 与复采轮至少固定：
 - 把某个 Shape 的参数描述为全局最优。
 - 把 kernel speedup 直接写成模型 TPOT speedup。
 - 把 Golden/ATK/模型 smoke 写成任务精度已完成。
+
+## 6. 最终 Evidence 合同
+
+从 `assets/final-evidence-template.json` 生成的 `final-evidence.json` 是机器可读的最终门禁：
+
+- `schema_version` 固定为 `1`，`work_package_schema_version` 与 `manifest.json` 一致。
+- `verdict` 必须为 `pass`；`plans.passed` 和 `plans.eliminated` 必须与 Dashboard 完全一致。
+- `performance_ab`、`precision`、`route`、`rollback` 四个 check 必须为 `pass`。
+- 每个 check 指向规定目录中的非空 JSON artifact；artifact 自身必须包含 `schema_version: 1` 和 `verdict: pass`。
+- `sha256` 必须与 artifact 当前内容一致。修改或复采 artifact 后必须同步更新摘要和哈希。
+
+validator 只接受 schema v2，对 schema v1 和未知版本一律失败。迁移旧工作包时，用 `init_run.py` 新建 v2 工作包，复制证据并按当前模板重建 Dashboard、Plan 和 `final-evidence.json`；不要只修改旧 manifest 的版本号。schema v2 强制 Dashboard loop 字段、Plan Round Loop、`perf/final/` 和 `model/rollback/`。
