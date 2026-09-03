@@ -37,6 +37,13 @@ skills.
 | `xllm-npu-triton-migration` / same | Migrate Triton-Ascend operator to AOT form; support/development | source kernel, target repo, shapes/dtypes, interface | kernel, npubin, wrappers, tests, report | 2 refs | May hand off xllm_ops integration; used by SOTA | Triton-Ascend to torch_npu_ops/xLLM | Yes for explicit migration. Not runtime wiring of an existing op | Adjacent to xllm_ops integration, boundary is explicit | Keep public specialist; `SKILL.md:13-40,40-146` |
 | `xllm-npu-xllm-ops-integration` / same | Wire existing xllm_ops into runtime; support/development | existing op, wrapper, callsite, xLLM root | runtime wrapper/callsite/CMake/tests/report | 1 script, 1 ref | Follows migration; used by SOTA | xLLM runtime only | Yes for explicit integration. Not source-kernel migration | Adjacent migration skill, no merge evidence | Keep public specialist; `SKILL.md:8-35,35-114` |
 
+## Post-PR12 Canonical Additions
+
+`tilelang-pto-kernel-workflow` was added after the PR12 baseline as the public specialist for
+multi-round TileLang and generated PTO kernel optimization. It owns operator-level W0-W8 and
+per-round decision state under the unified run, while `xllm-experiment-lifecycle` retains top-level
+run ownership and `xllm-npu-sota-loop` retains general end-to-end optimization ownership.
+
 ## Control-Plane Implementations That Are Not Skills
 
 | Implementation | Role | Evidence | Disposition |

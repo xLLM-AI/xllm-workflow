@@ -6,9 +6,9 @@
 
 ## 数量
 
-- 公开：20
+- 公开：21
 - 内部 / 仅显式调用：1
-- Canonical skills 总数：21
+- Canonical skills 总数：22
 
 ## 角色与领域矩阵
 
@@ -16,6 +16,7 @@
 |---|---|---|---|---|
 | `model-pr-optimization-history` | [Model and PR History](../../skills/model-pr-optimization-history/SKILL.md) | `planning-and-knowledge` | `knowledge` | `public-primary` |
 | `ssh-remote-exec` | [Remote SSH Execution](../../skills/ssh-remote-exec/SKILL.md) | `gates-and-support` | `remote-execution` | `internal-explicit-only` |
+| `tilelang-pto-kernel-workflow` | [TileLang to PTO Kernel Workflow](../../skills/tilelang-pto-kernel-workflow/SKILL.md) | `orchestration` | `development` | `public-primary` |
 | `xllm-experiment-lifecycle` | [Experiment Lifecycle](../../skills/xllm-experiment-lifecycle/SKILL.md) | `orchestration` | `lifecycle` | `public-primary` |
 | `xllm-npu-accuracy-debug` | [Accuracy Regression Debugging](../../skills/xllm-npu-accuracy-debug/SKILL.md) | `analysis-and-diagnosis` | `accuracy` | `public-primary` |
 | `xllm-npu-accuracy-runner` | [Accuracy Evaluation Runner](../../skills/xllm-npu-accuracy-runner/SKILL.md) | `execution` | `accuracy` | `public-primary` |
@@ -44,60 +45,68 @@
 flowchart TD
   s00["model-pr-optimization-history"]
   s01["ssh-remote-exec"]
-  s02["xllm-experiment-lifecycle"]
-  s03["xllm-npu-accuracy-debug"]
-  s04["xllm-npu-accuracy-runner"]
-  s05["xllm-npu-batch-perf"]
-  s06["xllm-npu-benchmark"]
-  s07["xllm-npu-build-gate"]
-  s08["xllm-npu-capacity-planner"]
-  s09["xllm-npu-code-review"]
-  s10["xllm-npu-compute-simulation"]
-  s11["xllm-npu-eval-runner"]
-  s12["xllm-npu-incident-triage"]
-  s13["xllm-npu-perf-runner"]
-  s14["xllm-npu-pipeline-analysis"]
-  s15["xllm-npu-profiler"]
-  s16["xllm-npu-report-writer"]
-  s17["xllm-npu-server-manager"]
-  s18["xllm-npu-sota-loop"]
-  s19["xllm-npu-triton-migration"]
-  s20["xllm-npu-xllm-ops-integration"]
-  s02 --> s06
+  s02["tilelang-pto-kernel-workflow"]
+  s03["xllm-experiment-lifecycle"]
+  s04["xllm-npu-accuracy-debug"]
+  s05["xllm-npu-accuracy-runner"]
+  s06["xllm-npu-batch-perf"]
+  s07["xllm-npu-benchmark"]
+  s08["xllm-npu-build-gate"]
+  s09["xllm-npu-capacity-planner"]
+  s10["xllm-npu-code-review"]
+  s11["xllm-npu-compute-simulation"]
+  s12["xllm-npu-eval-runner"]
+  s13["xllm-npu-incident-triage"]
+  s14["xllm-npu-perf-runner"]
+  s15["xllm-npu-pipeline-analysis"]
+  s16["xllm-npu-profiler"]
+  s17["xllm-npu-report-writer"]
+  s18["xllm-npu-server-manager"]
+  s19["xllm-npu-sota-loop"]
+  s20["xllm-npu-triton-migration"]
+  s21["xllm-npu-xllm-ops-integration"]
+  s02 --> s03
   s02 --> s07
-  s02 --> s17
-  s03 --> s04
-  s04 --> s17
-  s05 --> s01
-  s05 --> s13
-  s05 --> s16
-  s05 --> s17
-  s06 --> s16
-  s11 --> s01
-  s11 --> s04
-  s11 --> s07
-  s11 --> s13
-  s11 --> s16
-  s11 --> s17
-  s12 --> s07
-  s12 --> s15
-  s13 --> s17
-  s15 --> s14
-  s17 --> s01
-  s18 --> s03
-  s18 --> s06
-  s18 --> s08
-  s18 --> s09
-  s18 --> s10
-  s18 --> s11
-  s18 --> s12
-  s18 --> s14
-  s18 --> s15
-  s18 --> s19
-  s18 --> s20
+  s02 --> s10
+  s02 --> s12
+  s02 --> s16
+  s02 --> s21
+  s03 --> s07
+  s03 --> s08
+  s03 --> s18
+  s04 --> s05
+  s05 --> s18
+  s06 --> s01
+  s06 --> s14
+  s06 --> s17
+  s06 --> s18
+  s07 --> s17
+  s12 --> s01
+  s12 --> s05
+  s12 --> s08
+  s12 --> s14
+  s12 --> s17
+  s12 --> s18
+  s13 --> s08
+  s13 --> s16
+  s14 --> s18
+  s16 --> s15
+  s18 --> s01
+  s19 --> s02
+  s19 --> s04
+  s19 --> s07
+  s19 --> s09
+  s19 --> s10
+  s19 --> s11
+  s19 --> s12
+  s19 --> s13
+  s19 --> s15
+  s19 --> s16
   s19 --> s20
-  s20 --> s07
-  s20 --> s11
+  s19 --> s21
+  s20 --> s21
+  s21 --> s08
+  s21 --> s12
 ```
 
 ## Framework 与 backend scope
@@ -106,6 +115,7 @@ flowchart TD
 |---|---|---|
 | `model-pr-optimization-history` | xllm; vllm-ascend-dossiers; sglang-dossiers | reference-artifacts |
 | `ssh-remote-exec` | framework-neutral | remote-host; ascend-npu |
+| `tilelang-pto-kernel-workflow` | xllm; tilelang-generated-pto | ascend-npu; tilelang; pto |
 | `xllm-experiment-lifecycle` | xllm; adapter-artifact-lifecycle | backend-neutral-control-plane |
 | `xllm-npu-accuracy-debug` | xllm | ascend-npu; reference-gpu |
 | `xllm-npu-accuracy-runner` | xllm; openai-compatible-endpoint | ascend-npu |
@@ -136,6 +146,15 @@ flowchart TD
 - **不适用场景：** open-ended performance optimization; new benchmark execution; live incident diagnosis。
 - **输出：** matching dossier sections; historical risks; recommended next checks。
 - **Skill：** [Model and PR History](../../skills/model-pr-optimization-history/SKILL.md)
+
+### TileLang 到 PTO Kernel 优化闭环（TileLang to PTO Kernel Workflow，`tilelang-pto-kernel-workflow`）
+
+执行带门禁的多轮 TileLang 与 generated PTO kernel 优化闭环。
+
+- **适用场景：** multi-round TileLang or generated PTO kernel development and optimization; TileLang-to-PTO source and ISA specialization with production validation。
+- **不适用场景：** general xllm optimization without TileLang or PTO scope; one benchmark or existing profile analysis; experiment lifecycle management; runtime integration of an already completed operator only。
+- **输出：** operator baseline and profile evidence; per-round plans and decisions; validated kernel and production evidence。
+- **Skill：** [TileLang to PTO Kernel Workflow](../../skills/tilelang-pto-kernel-workflow/SKILL.md)
 
 ### 实验生命周期（Experiment Lifecycle，`xllm-experiment-lifecycle`）
 

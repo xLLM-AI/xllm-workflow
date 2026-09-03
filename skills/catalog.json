@@ -141,6 +141,64 @@
       }
     },
     {
+      "id": "tilelang-pto-kernel-workflow",
+      "directory": "tilelang-pto-kernel-workflow",
+      "category": "orchestrator",
+      "visibility": "public",
+      "routing_priority": 10,
+      "primary_intents": [
+        "multi-round TileLang or generated PTO kernel development and optimization",
+        "TileLang-to-PTO source and ISA specialization with production validation"
+      ],
+      "negative_intents": [
+        "general xllm optimization without TileLang or PTO scope",
+        "one benchmark or existing profile analysis",
+        "experiment lifecycle management",
+        "runtime integration of an already completed operator only"
+      ],
+      "dependencies": [
+        "xllm-experiment-lifecycle",
+        "xllm-npu-benchmark",
+        "xllm-npu-code-review",
+        "xllm-npu-eval-runner",
+        "xllm-npu-profiler",
+        "xllm-npu-xllm-ops-integration"
+      ],
+      "lifecycle_stage": [
+        "planning",
+        "analysis",
+        "implementation",
+        "review",
+        "validation",
+        "recording"
+      ],
+      "framework_scope": [
+        "xllm",
+        "tilelang-generated-pto"
+      ],
+      "backend_scope": [
+        "ascend-npu",
+        "tilelang",
+        "pto"
+      ],
+      "ownership": "tilelang-pto-kernel-optimization",
+      "presentation": {
+        "display_name": "TileLang to PTO Kernel Workflow",
+        "display_name_zh": "TileLang 到 PTO Kernel 优化闭环",
+        "domain": "development",
+        "role_group": "orchestration",
+        "exposure": "public-primary",
+        "summary": "Run a gated, multi-round TileLang and generated PTO kernel optimization workflow.",
+        "summary_zh": "执行带门禁的多轮 TileLang 与 generated PTO kernel 优化闭环。",
+        "outputs": [
+          "operator baseline and profile evidence",
+          "per-round plans and decisions",
+          "validated kernel and production evidence"
+        ],
+        "featured": false
+      }
+    },
+    {
       "id": "xllm-npu-accuracy-debug",
       "directory": "xllm-npu-accuracy-debug",
       "category": "analyzer",
@@ -831,6 +889,7 @@
         "incident-only reproduction"
       ],
       "dependencies": [
+        "tilelang-pto-kernel-workflow",
         "xllm-npu-accuracy-debug",
         "xllm-npu-benchmark",
         "xllm-npu-capacity-planner",

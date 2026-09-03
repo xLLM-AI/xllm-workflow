@@ -1,0 +1,4 @@
+interface:
+  display_name: "TileLang PTO Kernel Workflow"
+  short_description: "从真实模型 Profile 到 TileLang、PTO 与生产接入的算子优化流程"
+  default_prompt: "使用 $tilelang-pto-kernel-workflow 从真实模型 Profile 开始，完成这个 NPU 算子的 TileLang、PTO 与生产接入优化。"
