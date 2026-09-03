@@ -184,7 +184,8 @@ prepare 移到 schedule-overlap 窗口中。除非已有独立 A/B 证据，不�
 kernel、async D2H、LmHead setup cache、raw metadata copy 等多个实验合并进同一个
 上库 PR。
 
-算子工作使用具体专项 skill：Triton-Ascend AOT 迁移用
+算子工作使用具体专项 skill：TileLang 或 generated PTO kernel 的多轮开发与优化用
+`../tilelang-pto-kernel-workflow/SKILL.md`；Triton-Ascend AOT 迁移用
 `../xllm-npu-triton-migration/SKILL.md`；已有 xllm_ops 接入 runtime 用
 `../xllm-npu-xllm-ops-integration/SKILL.md`。
 
@@ -214,7 +215,7 @@ Record:   更新 run ledger 和可复用 reference
 |---|---|---|
 | Research | `xllm-npu-benchmark`, `xllm-npu-profiler`, `xllm-npu-pipeline-analysis`, `xllm-npu-capacity-planner`, `xllm-npu-compute-simulation`, `xllm-npu-accuracy-debug` | 证据摘要 |
 | Learn | `model-pr-optimization-history` | 相关历史和风险 |
-| Code | `xllm-npu-triton-migration`, `xllm-npu-xllm-ops-integration`, 目标仓库本地 skill | 一个 patch 或实验 |
+| Code | `tilelang-pto-kernel-workflow`, `xllm-npu-triton-migration`, `xllm-npu-xllm-ops-integration`, 目标仓库本地 skill | 一个 patch 或实验 |
 | Review | `xllm-npu-code-review`, 目标仓库 review 规则 | 分级 review findings |
 | Validate | `xllm-npu-eval-runner`, `xllm-npu-benchmark`, `xllm-npu-profiler`, `xllm-npu-accuracy-debug`, `xllm-npu-incident-triage` | 验证报告 |
 | Record | `xllm-npu-sota-loop`, `humanize/`, `reference/pr_history/` | attempt ledger、optimization ledger、可复用经验 |

@@ -93,6 +93,7 @@ when their adapters and runbooks are added.
 | Query model optimization history, prior risks, or PR lessons | `skills/model-pr-optimization-history/SKILL.md` |
 | Create, resume, validate, finalize, or archive an experiment run | `skills/xllm-experiment-lifecycle/SKILL.md` |
 | End-to-end optimization goal | `skills/xllm-npu-sota-loop/SKILL.md` |
+| Multi-round TileLang or generated PTO kernel development and optimization | `skills/tilelang-pto-kernel-workflow/SKILL.md` |
 | Build, compile, build gate, NPU gate, or multi-candidate build reuse | `skills/xllm-npu-build-gate/SKILL.md` |
 | End-to-end eval (service + perf + accuracy + report) | `skills/xllm-npu-eval-runner/SKILL.md` |
 | Batch perf eval for multiple models with different TP | `skills/xllm-npu-batch-perf/SKILL.md` |

@@ -10,6 +10,7 @@
 |---|---|
 | 创建、恢复、finalize 或 archive 实验 | `xllm-experiment-lifecycle` |
 | 多轮迭代优化 xLLM 性能 | `xllm-npu-sota-loop` |
+| 多轮开发或优化 TileLang / generated PTO kernel | `tilelang-pto-kernel-workflow` |
 | 执行性能与精度混合套件 | `xllm-npu-eval-runner` |
 | 执行一次性能或精度 workload | `xllm-npu-perf-runner` 或 `xllm-npu-accuracy-runner` |
 | 启动、验证、smoke 并清理服务 | `xllm-npu-server-manager` |

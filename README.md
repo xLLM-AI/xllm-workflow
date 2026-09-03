@@ -10,6 +10,7 @@ Evidence-driven workflows, skills, scripts, and reference knowledge for large-mo
 |---|---|
 | Create, resume, finalize, or archive an experiment | `xllm-experiment-lifecycle` |
 | Optimize xLLM performance through multiple iterations | `xllm-npu-sota-loop` |
+| Develop or optimize a TileLang or generated PTO kernel through multiple rounds | `tilelang-pto-kernel-workflow` |
 | Run a mixed performance and accuracy suite | `xllm-npu-eval-runner` |
 | Run one performance or accuracy workload | `xllm-npu-perf-runner` or `xllm-npu-accuracy-runner` |
 | Launch, verify, smoke-test, and clean up a service | `xllm-npu-server-manager` |

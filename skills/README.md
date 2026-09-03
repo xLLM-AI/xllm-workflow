@@ -22,6 +22,7 @@
 
 ### 编排器
 
+- [TileLang to PTO Kernel Workflow](./tilelang-pto-kernel-workflow/SKILL.md) (`tilelang-pto-kernel-workflow`)
 - [Experiment Lifecycle](./xllm-experiment-lifecycle/SKILL.md) (`xllm-experiment-lifecycle`)
 - [Batch Performance Campaign](./xllm-npu-batch-perf/SKILL.md) (`xllm-npu-batch-perf`)
 - [Mixed Evaluation Orchestrator](./xllm-npu-eval-runner/SKILL.md) (`xllm-npu-eval-runner`)
@@ -106,6 +107,7 @@
 
 ### `development`
 
+- [TileLang to PTO Kernel Workflow](./tilelang-pto-kernel-workflow/SKILL.md) (`tilelang-pto-kernel-workflow`)
 - [NPU Code Review](./xllm-npu-code-review/SKILL.md) (`xllm-npu-code-review`)
 - [Triton-Ascend Operator Migration](./xllm-npu-triton-migration/SKILL.md) (`xllm-npu-triton-migration`)
 - [xllm_ops Runtime Integration](./xllm-npu-xllm-ops-integration/SKILL.md) (`xllm-npu-xllm-ops-integration`)
@@ -116,7 +118,7 @@
 
 ## 公开与内部能力
 
-- **公开：** 20 个具有直接用户目标的 skills。
+- **公开：** 21 个具有直接用户目标的 skills。
 - **内部 / 仅显式调用：** 1 个 skill。它可以被显式调用或委托，但不能成为隐式主路由。
 
 - [Remote SSH Execution](./ssh-remote-exec/SKILL.md) (`ssh-remote-exec`) — Execute explicitly requested SSH and remote-container commands for delegated workflows.
@@ -150,6 +152,20 @@ Canonical ID：`ssh-remote-exec`
 **输出：** remote command output; background-task status。
 
 查看 [Remote SSH Execution](./ssh-remote-exec/SKILL.md)。
+
+### TileLang 到 PTO Kernel 优化闭环（TileLang to PTO Kernel Workflow）
+
+Canonical ID：`tilelang-pto-kernel-workflow`
+角色：`orchestration` · 领域：`development` · 暴露方式：`public-primary`
+执行带门禁的多轮 TileLang 与 generated PTO kernel 优化闭环。
+
+**适用场景：** multi-round TileLang or generated PTO kernel development and optimization; TileLang-to-PTO source and ISA specialization with production validation。
+
+**不适用场景：** general xllm optimization without TileLang or PTO scope; one benchmark or existing profile analysis; experiment lifecycle management; runtime integration of an already completed operator only。
+
+**输出：** operator baseline and profile evidence; per-round plans and decisions; validated kernel and production evidence。
+
+查看 [TileLang to PTO Kernel Workflow](./tilelang-pto-kernel-workflow/SKILL.md)。
 
 ### 实验生命周期（Experiment Lifecycle）
 
